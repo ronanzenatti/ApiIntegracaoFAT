@@ -1,105 +1,40 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// Data/ApiIntegracaoDbContext.cs
+using Microsoft.EntityFrameworkCore;
 using ApiIntegracao.Models;
 using System.Linq.Expressions;
 
 namespace ApiIntegracao.Data
 {
-    public class ApiIntegracaoDbContext(DbContextOptions<ApiIntegracaoDbContext> options) : DbContext(options)
+    public class ApiIntegracaoDbContext : DbContext
     {
-        public DbSet<Aluno> Alunos { get; set; }
-        public DbSet<Matricula> Matriculas { get; set; }
+        public ApiIntegracaoDbContext(DbContextOptions<ApiIntegracaoDbContext> options)
+            : base(options) { }
+
+        // DbSets - Tabelas do banco
         public DbSet<Curso> Cursos { get; set; }
         public DbSet<Turma> Turmas { get; set; }
+        public DbSet<Aluno> Alunos { get; set; }
+        public DbSet<Matricula> Matriculas { get; set; }
+        public DbSet<AulaGerada> AulasGeradas { get; set; }
+        public DbSet<FrequenciaProcessada> FrequenciasProcessadas { get; set; }
         public DbSet<SyncLog> SyncLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(modelBuilder);
+            // Aplicar todas as configurações de uma vez
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApiIntegracaoDbContext).Assembly);
 
-            // Configuração da entidade Aluno
-            modelBuilder.Entity<Aluno>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Nome).IsRequired().HasMaxLength(200);
-                entity.Property(e => e.Cpf).IsRequired().HasMaxLength(11);
-                entity.Property(e => e.NomeSocial).HasMaxLength(200);
-                entity.Property(e => e.Rg).HasMaxLength(20);
-                entity.Property(e => e.Email).HasMaxLength(100);
-                entity.Property(e => e.EmailInstitucional).HasMaxLength(100);
-                entity.HasIndex(e => e.IdCettpro).IsUnique();
-                entity.HasIndex(e => e.Cpf).IsUnique();
-            });
+            // Configuração global para soft delete
+            ConfigurarSoftDelete(modelBuilder);
+        }
 
-            // Configuração da entidade Curso
-            modelBuilder.Entity<Curso>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.NomeCurso).IsRequired().HasMaxLength(200);
-                entity.Property(e => e.CargaHoraria).HasMaxLength(50);
-                entity.Property(e => e.Descricao).HasMaxLength(500);
-                entity.HasIndex(e => e.IdCettpro).IsUnique();
-            });
-
-            // Configuração da entidade Turma
-            modelBuilder.Entity<Turma>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Nome).IsRequired().HasMaxLength(200);
-                entity.Property(e => e.DisciplinaNomePortalFat).HasMaxLength(200);
-                entity.HasIndex(e => e.IdCettpro).IsUnique();
-
-                // Relacionamento Turma -> Curso
-                entity.HasOne(t => t.Curso)
-                      .WithMany()
-                      .HasForeignKey(t => t.CursoId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // Configuração da entidade Matricula
-            modelBuilder.Entity<Matricula>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.HasIndex(e => e.IdCettpro).IsUnique();
-
-                // Relacionamento Matricula -> Aluno
-                entity.HasOne(m => m.Aluno)
-                      .WithMany()
-                      .HasForeignKey(m => m.AlunoId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                // Relacionamento Matricula -> Turma
-                entity.HasOne(m => m.Turma)
-                      .WithMany()
-                      .HasForeignKey(m => m.TurmaId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                // Índice único para evitar matrículas duplicadas
-                entity.HasIndex(m => new { m.AlunoId, m.TurmaId }).IsUnique();
-            });
-
-            // Configuração da entidade SyncLog
-            modelBuilder.Entity<SyncLog>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.TipoEntidade).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.Operacao).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.ErroDetalhes).HasMaxLength(1000);
-            });
-
-            // Configuração global para todas as entidades auditáveis
+        private void ConfigurarSoftDelete(ModelBuilder modelBuilder)
+        {
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 if (typeof(Models.Base.AuditableEntity).IsAssignableFrom(entityType.ClrType))
                 {
-                    modelBuilder.Entity(entityType.ClrType)
-                        .Property("CreatedAt")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    modelBuilder.Entity(entityType.ClrType)
-                        .Property("UpdatedAt")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    // Filtro global para soft delete
+                    // Criar filtro global para soft delete
                     var parameter = Expression.Parameter(entityType.ClrType, "e");
                     var property = Expression.Property(parameter, "DeletedAt");
                     var constant = Expression.Constant(null, typeof(DateTime?));
@@ -132,15 +67,18 @@ namespace ApiIntegracao.Data
                 switch (entry.State)
                 {
                     case EntityState.Added:
+                        entry.Entity.Id = Guid.NewGuid();
                         entry.Entity.CreatedAt = DateTime.UtcNow;
                         entry.Entity.UpdatedAt = DateTime.UtcNow;
                         break;
 
                     case EntityState.Modified:
                         entry.Entity.UpdatedAt = DateTime.UtcNow;
+                        entry.Property(x => x.CreatedAt).IsModified = false;
                         break;
 
                     case EntityState.Deleted:
+                        // Implementar soft delete
                         entry.State = EntityState.Modified;
                         entry.Entity.DeletedAt = DateTime.UtcNow;
                         break;
