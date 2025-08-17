@@ -1,12 +1,12 @@
 ﻿// Services/Implementations/FrequenciaService.cs
 using ApiIntegracao.Data;
+using ApiIntegracao.DTOs;
 using ApiIntegracao.Exceptions;
 using ApiIntegracao.Infrastructure.FileProcessing;
 using ApiIntegracao.Infrastructure.HttpClients;
 using ApiIntegracao.Models;
-using ApiIntegracao.Models.Base;
 using ApiIntegracao.Services.Contracts;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace ApiIntegracao.Services.Implementations
 {

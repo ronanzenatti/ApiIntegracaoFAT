@@ -1,6 +1,6 @@
 ﻿// Data/ApiIntegracaoDbContext.cs
-using Microsoft.EntityFrameworkCore;
 using ApiIntegracao.Models;
+using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 namespace ApiIntegracao.Data

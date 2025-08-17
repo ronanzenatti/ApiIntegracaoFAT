@@ -1,8 +1,8 @@
 ﻿// Infrastructure/HttpClients/CettproApiClient.cs
+using ApiIntegracao.Exceptions;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using ApiIntegracao.Exceptions;
 
 namespace ApiIntegracao.Infrastructure.HttpClients
 {
@@ -111,7 +111,7 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             // Configurar autorização
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-;
+            ;
             var response = await _httpClient.SendAsync(request);
 
             return await ProcessResponse<T>(response, endpoint);

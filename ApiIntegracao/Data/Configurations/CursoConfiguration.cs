@@ -1,7 +1,7 @@
 ﻿// Data/Configurations/CursoConfiguration.cs
+using ApiIntegracao.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using ApiIntegracao.Models;
 
 namespace ApiIntegracao.Data.Configurations
 {

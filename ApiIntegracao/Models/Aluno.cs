@@ -2,7 +2,7 @@
 
 namespace ApiIntegracao.Models
 {
-    public class Aluno: AuditableEntity
+    public class Aluno : AuditableEntity
     {
         public Guid IdCettpro { get; set; }
         public required string Nome { get; set; }

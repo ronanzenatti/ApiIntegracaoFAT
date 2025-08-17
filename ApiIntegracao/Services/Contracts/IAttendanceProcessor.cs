@@ -1,4 +1,5 @@
 ﻿// Services/Contracts/IAttendanceProcessor.cs
+using ApiIntegracao.DTOs;
 using ApiIntegracao.Infrastructure.FileProcessing;
 using ApiIntegracao.Models;
 

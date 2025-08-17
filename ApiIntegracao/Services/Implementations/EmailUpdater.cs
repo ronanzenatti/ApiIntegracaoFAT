@@ -1,7 +1,8 @@
 ﻿// Services/Implementations/EmailUpdater.cs
 using ApiIntegracao.Data;
+using ApiIntegracao.DTOs;
 using ApiIntegracao.Services.Contracts;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace ApiIntegracao.Services.Implementations
 {

@@ -43,9 +43,6 @@
 
 	<ItemGroup>
 		<Folder Include="BackgroundServices\" />
-		<Folder Include="DTOs\Cettpro\" />
-		<Folder Include="DTOs\Responses\" />
-		<Folder Include="DTOs\Requests\" />
 		<Folder Include="Helpers\" />
 		<Folder Include="Configuration\" />
 		<Folder Include="Infrastructure\Email\" />

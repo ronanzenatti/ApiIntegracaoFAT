@@ -1,5 +1,6 @@
 ﻿// Controllers/FrequenciaController.cs
-using ApiIntegracao.Services.Implementations;
+using ApiIntegracao.DTOs;
+using ApiIntegracao.Services.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 

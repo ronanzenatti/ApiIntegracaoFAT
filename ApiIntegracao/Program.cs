@@ -1,10 +1,9 @@
 // Program.cs
 using ApiIntegracao.Data;
-using ApiIntegracao.Infrastructure.HttpClients;
 using ApiIntegracao.Infrastructure.FileProcessing;
+using ApiIntegracao.Infrastructure.HttpClients;
 using ApiIntegracao.Services.Contracts;
 using ApiIntegracao.Services.Implementations;
-using ApiIntegracao.BackgroundServices;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;

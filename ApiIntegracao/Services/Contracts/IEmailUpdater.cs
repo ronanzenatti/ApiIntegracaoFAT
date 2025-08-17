@@ -1,4 +1,6 @@
 ﻿// Services/Contracts/IEmailUpdater.cs
+using ApiIntegracao.DTOs;
+
 namespace ApiIntegracao.Services.Contracts
 {
     public interface IEmailUpdater
