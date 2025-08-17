@@ -214,7 +214,6 @@ namespace ApiIntegracao.Infrastructure.HttpClients
                 var options = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 };
 
                 return JsonSerializer.Deserialize<T>(content, options);

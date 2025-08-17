@@ -12,7 +12,7 @@ using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddScoped<IFileParser, FileParser>();
+builder.Services.AddScoped<IFileParser, AttendanceFileParser>();
 
 // Configuração do Serilog
 Log.Logger = new LoggerConfiguration()
@@ -72,6 +72,8 @@ builder.Services.AddHttpClient<ICettproApiClient, CettproApiClient>(client =>
 builder.Services.AddScoped<ISyncService, SyncService>();
 builder.Services.AddScoped<ICronogramaService, CronogramaService>();
 builder.Services.AddScoped<IFrequenciaService, FrequenciaService>();
+builder.Services.AddScoped<IEmailUpdater, EmailUpdater>();
+builder.Services.AddScoped<IAttendanceProcessor, AttendanceProcessor>();
 
 // Registro do Background Service
 builder.Services.AddHostedService<SyncBackgroundService>();

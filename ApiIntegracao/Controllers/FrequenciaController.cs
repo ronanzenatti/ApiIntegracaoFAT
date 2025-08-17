@@ -24,12 +24,15 @@ public class FrequenciaController : ControllerBase
     [ProducesResponseType(typeof(FrequenciaResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<FrequenciaResponseDto>> ProcessarFrequencia(
-        [FromForm] string dados,
-        [FromForm] IFormFile arquivoFrequencia)
+    public async Task<ActionResult<FrequenciaResponseDto>> ProcessarFrequencia()
     {
         try
         {
+            // Ler os dados diretamente do formulário da requisição
+            var form = await Request.ReadFormAsync();
+            var dados = form["dados"].FirstOrDefault();
+            var arquivoFrequencia = form.Files.GetFile("arquivoFrequencia");
+
             // Validações básicas
             if (string.IsNullOrWhiteSpace(dados))
             {

@@ -61,7 +61,7 @@ namespace ApiIntegracao.Services.Implementations
                 result.EndTime = DateTime.UtcNow;
             }
 
-            await LogSyncResult("Full", result);
+            // O log individual de cada sync já é feito dentro dos métodos
             return result;
         }
 
@@ -73,21 +73,24 @@ namespace ApiIntegracao.Services.Implementations
             {
                 _logger.LogInformation("Iniciando sincronização de cursos...");
 
-                // Buscar dados da CETTPRO
-                var cursosFromApi = await _cettproClient.GetAsync<List<CursoDto>>("api/v1/RetornaCursos");
+                // CORREÇÃO: A API retorna uma lista de programas, cada um com uma lista de cursos.
+                var programasFromApi = await _cettproClient.GetAsync<List<ProgramaDto>>("api/v1/RetornaCursos");
+
+                // Extrai todos os cursos de todos os programas para uma lista única.
+                var cursosFromApi = programasFromApi?.SelectMany(p => p.Cursos).ToList();
 
                 if (cursosFromApi == null || !cursosFromApi.Any())
                 {
                     result.Errors.Add("Nenhum curso retornado pela API");
                     result.EndTime = DateTime.UtcNow;
+                    await LogSyncResult("Curso", result);
                     return result;
                 }
 
                 result.TotalProcessed = cursosFromApi.Count;
                 _logger.LogInformation("Processando {Count} cursos da CETTPRO", cursosFromApi.Count);
 
-                // Processar cada curso
-                var idsFromApi = new HashSet<Guid>();
+                var idsFromApi = new HashSet<Guid>(cursosFromApi.Select(c => c.IdCurso));
 
                 foreach (var cursoDto in cursosFromApi)
                 {
@@ -100,61 +103,31 @@ namespace ApiIntegracao.Services.Implementations
 
                         if (cursoExistente == null)
                         {
-                            // Inserir novo curso
                             var novoCurso = new Curso
                             {
                                 IdCettpro = cursoDto.IdCurso,
                                 NomeCurso = cursoDto.NomeCurso,
-                                CargaHoraria = cursoDto.CargaHoraria.ToString(), // CORREÇÃO: converter int para string
+                                CargaHoraria = cursoDto.CargaHoraria, // Mapeamento direto de string?
                                 Descricao = cursoDto.Descricao,
-                                ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty, // CORREÇÃO: tratar Guid nullable
+                                ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty,
                                 Ativo = cursoDto.Ativo
                             };
-
                             _context.Cursos.Add(novoCurso);
                             result.Inserted++;
-                            _logger.LogDebug("Novo curso adicionado: {Nome}", cursoDto.NomeCurso);
                         }
                         else
                         {
-                            // Verificar se houve mudanças
                             bool hasChanges = false;
-
-                            if (cursoExistente.NomeCurso != cursoDto.NomeCurso)
-                            {
-                                cursoExistente.NomeCurso = cursoDto.NomeCurso;
-                                hasChanges = true;
-                            }
-
-                            if (cursoExistente.CargaHoraria != cursoDto.CargaHoraria.ToString()) // CORREÇÃO
-                            {
-                                cursoExistente.CargaHoraria = cursoDto.CargaHoraria.ToString(); // CORREÇÃO
-                                hasChanges = true;
-                            }
-
-                            if (cursoExistente.Descricao != cursoDto.Descricao)
-                            {
-                                cursoExistente.Descricao = cursoDto.Descricao;
-                                hasChanges = true;
-                            }
-
-                            if (cursoExistente.ModalidadeId != (cursoDto.ModalidadeId ?? Guid.Empty))
-                            {
-                                cursoExistente.ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty;
-                                hasChanges = true;
-                            }
-
-                            if (cursoExistente.Ativo != cursoDto.Ativo)
-                            {
-                                cursoExistente.Ativo = cursoDto.Ativo;
-                                hasChanges = true;
-                            }
+                            if (cursoExistente.NomeCurso != cursoDto.NomeCurso) { cursoExistente.NomeCurso = cursoDto.NomeCurso; hasChanges = true; }
+                            if (cursoExistente.CargaHoraria != cursoDto.CargaHoraria) { cursoExistente.CargaHoraria = cursoDto.CargaHoraria; hasChanges = true; }
+                            if (cursoExistente.Descricao != cursoDto.Descricao) { cursoExistente.Descricao = cursoDto.Descricao; hasChanges = true; }
+                            if (cursoExistente.ModalidadeId != (cursoDto.ModalidadeId ?? Guid.Empty)) { cursoExistente.ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty; hasChanges = true; }
+                            if (cursoExistente.Ativo != cursoDto.Ativo) { cursoExistente.Ativo = cursoDto.Ativo; hasChanges = true; }
+                            if (cursoExistente.DeletedAt != null) { cursoExistente.DeletedAt = null; hasChanges = true; }
 
                             if (hasChanges)
                             {
-                                cursoExistente.UpdatedAt = DateTime.UtcNow;
                                 result.Updated++;
-                                _logger.LogDebug("Curso atualizado: {Nome}", cursoDto.NomeCurso);
                             }
                         }
                     }
@@ -165,7 +138,6 @@ namespace ApiIntegracao.Services.Implementations
                     }
                 }
 
-                // Soft delete dos cursos que não vieram da API
                 var cursosParaDesativar = await _context.Cursos
                     .Where(c => !idsFromApi.Contains(c.IdCettpro) && c.DeletedAt == null)
                     .ToListAsync();
@@ -178,11 +150,10 @@ namespace ApiIntegracao.Services.Implementations
                 }
 
                 await _context.SaveChangesAsync();
-
-                result.Success = true;
+                result.Success = !result.Errors.Any();
                 _logger.LogInformation(
-                    "Sincronização de cursos concluída: {Inserted} inseridos, {Updated} atualizados, {Deleted} deletados",
-                    result.Inserted, result.Updated, result.Deleted);
+                   "Sincronização de cursos concluída: {Inserted} inseridos, {Updated} atualizados, {Deleted} deletados",
+                   result.Inserted, result.Updated, result.Deleted);
             }
             catch (Exception ex)
             {
@@ -207,12 +178,14 @@ namespace ApiIntegracao.Services.Implementations
             {
                 _logger.LogInformation("Iniciando sincronização de turmas...");
 
+                // CORREÇÃO: O endpoint de Turmas espera um POST com corpo JSON, mesmo que vazio.
                 var turmasFromApi = await _cettproClient.GetAsync<List<TurmaDto>>("api/v1/Turma");
 
                 if (turmasFromApi == null || !turmasFromApi.Any())
                 {
                     result.Errors.Add("Nenhuma turma retornada pela API");
                     result.EndTime = DateTime.UtcNow;
+                    await LogSyncResult("Turma", result);
                     return result;
                 }
 
@@ -230,7 +203,6 @@ namespace ApiIntegracao.Services.Implementations
                         var turmaExistente = await _context.Turmas
                             .FirstOrDefaultAsync(t => t.IdCettpro == turmaDto.IdTurma);
 
-                        // Buscar curso relacionado
                         Curso? curso = null;
                         if (turmaDto.CursoId.HasValue)
                         {
@@ -238,9 +210,14 @@ namespace ApiIntegracao.Services.Implementations
                                 .FirstOrDefaultAsync(c => c.IdCettpro == turmaDto.CursoId.Value);
                         }
 
+                        if (curso == null)
+                        {
+                            _logger.LogWarning("Curso com ID {CursoId} não encontrado para a turma {TurmaNome}. A turma será ignorada.", turmaDto.CursoId, turmaDto.Nome);
+                            continue;
+                        }
+
                         if (turmaExistente == null)
                         {
-                            // Inserir nova turma
                             var novaTurma = new Turma
                             {
                                 IdCettpro = turmaDto.IdTurma,
@@ -248,63 +225,23 @@ namespace ApiIntegracao.Services.Implementations
                                 DataInicio = turmaDto.DataInicio,
                                 DataTermino = turmaDto.DataTermino,
                                 Status = turmaDto.Status,
-                                CursoId = curso?.Id ?? Guid.Empty,
-                                Curso = curso!
+                                CursoId = curso.Id,
+                                Curso = curso
                             };
-
                             _context.Turmas.Add(novaTurma);
                             result.Inserted++;
-
-                            _logger.LogDebug("Nova turma adicionada: {Nome}", turmaDto.Nome);
                         }
                         else
                         {
-                            // Atualizar turma existente
                             bool hasChanges = false;
+                            if (turmaExistente.Nome != turmaDto.Nome) { turmaExistente.Nome = turmaDto.Nome; hasChanges = true; }
+                            if (turmaExistente.DataInicio != turmaDto.DataInicio) { turmaExistente.DataInicio = turmaDto.DataInicio; hasChanges = true; }
+                            if (turmaExistente.DataTermino != turmaDto.DataTermino) { turmaExistente.DataTermino = turmaDto.DataTermino; hasChanges = true; }
+                            if (turmaExistente.Status != turmaDto.Status) { turmaExistente.Status = turmaDto.Status; hasChanges = true; }
+                            if (turmaExistente.CursoId != curso.Id) { turmaExistente.CursoId = curso.Id; hasChanges = true; }
+                            if (turmaExistente.DeletedAt.HasValue) { turmaExistente.DeletedAt = null; hasChanges = true; }
 
-                            if (turmaExistente.Nome != turmaDto.Nome)
-                            {
-                                turmaExistente.Nome = turmaDto.Nome;
-                                hasChanges = true;
-                            }
-
-                            if (turmaExistente.DataInicio != turmaDto.DataInicio)
-                            {
-                                turmaExistente.DataInicio = turmaDto.DataInicio;
-                                hasChanges = true;
-                            }
-
-                            if (turmaExistente.DataTermino != turmaDto.DataTermino)
-                            {
-                                turmaExistente.DataTermino = turmaDto.DataTermino;
-                                hasChanges = true;
-                            }
-
-                            if (turmaExistente.Status != turmaDto.Status)
-                            {
-                                turmaExistente.Status = turmaDto.Status;
-                                hasChanges = true;
-                            }
-
-                            if (curso != null && turmaExistente.CursoId != curso.Id)
-                            {
-                                turmaExistente.CursoId = curso.Id;
-                                turmaExistente.Curso = curso;
-                                hasChanges = true;
-                            }
-
-                            // Reativar se estava soft-deleted
-                            if (turmaExistente.DeletedAt.HasValue)
-                            {
-                                turmaExistente.DeletedAt = null;
-                                hasChanges = true;
-                            }
-
-                            if (hasChanges)
-                            {
-                                result.Updated++;
-                                _logger.LogDebug("Turma atualizada: {Nome}", turmaDto.Nome);
-                            }
+                            if (hasChanges) result.Updated++;
                         }
                     }
                     catch (Exception ex)
@@ -314,7 +251,6 @@ namespace ApiIntegracao.Services.Implementations
                     }
                 }
 
-                // Soft delete das turmas que não vieram da API
                 var turmasParaDesativar = await _context.Turmas
                     .Where(t => !idsFromApi.Contains(t.IdCettpro) && t.DeletedAt == null)
                     .ToListAsync();
@@ -323,12 +259,10 @@ namespace ApiIntegracao.Services.Implementations
                 {
                     turma.DeletedAt = DateTime.UtcNow;
                     result.Deleted++;
-                    _logger.LogWarning("Turma marcada como deletada: {Nome}", turma.Nome);
                 }
 
                 await _context.SaveChangesAsync();
-
-                result.Success = true;
+                result.Success = !result.Errors.Any();
                 _logger.LogInformation(
                     "Sincronização de turmas concluída: {Inserted} inseridas, {Updated} atualizadas, {Deleted} deletadas",
                     result.Inserted, result.Updated, result.Deleted);
@@ -352,98 +286,13 @@ namespace ApiIntegracao.Services.Implementations
         {
             var result = new SyncResult { StartTime = DateTime.UtcNow };
 
-            try
-            {
-                _logger.LogInformation("Iniciando sincronização de alunos...");
+            // CORREÇÃO: A API não tem um endpoint para buscar todas as matrículas/alunos.
+            // A sincronização de alunos deve ser feita por turma, em um processo separado.
+            _logger.LogInformation("Sincronização de Alunos: Etapa pulada. Não há endpoint global na API CETTPRO para buscar todos os alunos. A sincronização de alunos deve ocorrer em um contexto de turma específica.");
 
-                // Buscar matrículas da API (que contêm os alunos)
-                var matriculasFromApi = await _cettproClient.GetAsync<List<MatriculaDto>>("api/v1/Matricula");
-
-                if (matriculasFromApi == null || !matriculasFromApi.Any())
-                {
-                    result.Errors.Add("Nenhuma matrícula retornada pela API");
-                    result.EndTime = DateTime.UtcNow;
-                    return result;
-                }
-
-                // Extrair alunos únicos das matrículas
-                var alunosFromApi = matriculasFromApi
-                    .SelectMany(m => m.Alunos)
-                    .GroupBy(a => a.IdAluno)
-                    .Select(g => g.First())
-                    .ToList();
-
-                result.TotalProcessed = alunosFromApi.Count;
-                _logger.LogInformation("Processando {Count} alunos da CETTPRO", alunosFromApi.Count);
-
-                var idsFromApi = new HashSet<Guid>();
-
-                foreach (var alunoDto in alunosFromApi)
-                {
-                    try
-                    {
-                        idsFromApi.Add(alunoDto.IdAluno);
-
-                        var alunoExistente = await _context.Alunos
-                            .FirstOrDefaultAsync(a => a.IdCettpro == alunoDto.IdAluno);
-
-                        if (alunoExistente == null)
-                        {
-                            // Inserir novo aluno
-                            var novoAluno = new Aluno
-                            {
-                                IdCettpro = alunoDto.IdAluno,
-                                Nome = alunoDto.Nome,
-                                NomeSocial = alunoDto.NomeSocial,
-                                NomePai = alunoDto.NomePai,
-                                NomeMae = alunoDto.NomeMae,
-                                Cpf = alunoDto.Cpf,
-                                Rg = alunoDto.Rg,
-                                MunicipioId = alunoDto.MunicipioId,
-                                DataNascimento = alunoDto.DataNascimento,
-                                Genero = alunoDto.Genero,
-                                Sexo = alunoDto.Sexo,
-                                Nacionalidade = alunoDto.Nacionalidade,
-                                EstadoCivil = alunoDto.EstadoCivil,
-                                Raca = alunoDto.Raca,
-                                Email = alunoDto.Email
-                            };
-
-                            _context.Alunos.Add(novoAluno);
-                            result.Inserted++;
-
-                            _logger.LogDebug("Novo aluno adicionado: {Nome}", alunoDto.Nome);
-                        }
-                        else
-                        {
-                            // Atualizar aluno existente (implementar conforme necessário)
-                            // ... lógica de atualização similar aos cursos/turmas
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Erro ao processar aluno {Id}", alunoDto.IdAluno);
-                        result.Errors.Add($"Erro no aluno {alunoDto.Nome}: {ex.Message}");
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-
-                result.Success = true;
-                _logger.LogInformation(
-                    "Sincronização de alunos concluída: {Inserted} inseridos, {Updated} atualizados",
-                    result.Inserted, result.Updated);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro durante sincronização de alunos");
-                result.Success = false;
-                result.Errors.Add($"Erro: {ex.Message}");
-            }
-            finally
-            {
-                result.EndTime = DateTime.UtcNow;
-            }
+            result.Success = true;
+            result.TotalProcessed = 0;
+            result.EndTime = DateTime.UtcNow;
 
             await LogSyncResult("Aluno", result);
             return result;

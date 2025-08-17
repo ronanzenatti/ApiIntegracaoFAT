@@ -27,7 +27,7 @@ namespace ApiIntegracao.Data.Configurations
                 .HasMaxLength(200);
 
             builder.HasOne(t => t.Curso)
-                .WithMany()
+               .WithMany(c => c.Turmas)
                 .HasForeignKey(t => t.CursoId)
                 .OnDelete(DeleteBehavior.Restrict);
 

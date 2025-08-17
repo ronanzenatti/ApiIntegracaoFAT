@@ -66,11 +66,11 @@ namespace ApiIntegracao.BackgroundServices
                 var cursoResult = await syncService.SyncCursosAsync();
                 LogSyncResult("Cursos", cursoResult);
 
-                var turmaResult = await syncService.SyncTurmasAsync();
-                LogSyncResult("Turmas", turmaResult);
+                //var turmaResult = await syncService.SyncTurmasAsync();
+                //LogSyncResult("Turmas", turmaResult);
 
-                var alunoResult = await syncService.SyncAlunosAsync();
-                LogSyncResult("Alunos", alunoResult);
+                //var alunoResult = await syncService.SyncAlunosAsync();
+                //LogSyncResult("Alunos", alunoResult);
 
                 _logger.LogInformation("Sincronização automática concluída com sucesso");
             }

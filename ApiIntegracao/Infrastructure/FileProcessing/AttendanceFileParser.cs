@@ -1,4 +1,5 @@
 ﻿// Infrastructure/FileProcessing/AttendanceFileParser.cs
+using ApiIntegracao.DTOs;
 using CsvHelper;
 using CsvHelper.Configuration;
 using ExcelDataReader;
