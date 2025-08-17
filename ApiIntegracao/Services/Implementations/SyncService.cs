@@ -1,6 +1,5 @@
 ﻿using ApiIntegracao.Data;
 using ApiIntegracao.DTOs;
-using ApiIntegracao.Exceptions;
 using ApiIntegracao.Infrastructure.HttpClients;
 using ApiIntegracao.Models;
 using ApiIntegracao.Services.Contracts;
@@ -106,20 +105,19 @@ namespace ApiIntegracao.Services.Implementations
                             {
                                 IdCettpro = cursoDto.IdCurso,
                                 NomeCurso = cursoDto.NomeCurso,
-                                CargaHoraria = cursoDto.CargaHoraria,
+                                CargaHoraria = cursoDto.CargaHoraria.ToString(), // CORREÇÃO: converter int para string
                                 Descricao = cursoDto.Descricao,
-                                ModalidadeId = cursoDto.ModalidadeId,
+                                ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty, // CORREÇÃO: tratar Guid nullable
                                 Ativo = cursoDto.Ativo
                             };
 
                             _context.Cursos.Add(novoCurso);
                             result.Inserted++;
-
                             _logger.LogDebug("Novo curso adicionado: {Nome}", cursoDto.NomeCurso);
                         }
                         else
                         {
-                            // Verificar se houve alterações
+                            // Verificar se houve mudanças
                             bool hasChanges = false;
 
                             if (cursoExistente.NomeCurso != cursoDto.NomeCurso)
@@ -128,9 +126,9 @@ namespace ApiIntegracao.Services.Implementations
                                 hasChanges = true;
                             }
 
-                            if (cursoExistente.CargaHoraria != cursoDto.CargaHoraria)
+                            if (cursoExistente.CargaHoraria != cursoDto.CargaHoraria.ToString()) // CORREÇÃO
                             {
-                                cursoExistente.CargaHoraria = cursoDto.CargaHoraria;
+                                cursoExistente.CargaHoraria = cursoDto.CargaHoraria.ToString(); // CORREÇÃO
                                 hasChanges = true;
                             }
 
@@ -140,27 +138,21 @@ namespace ApiIntegracao.Services.Implementations
                                 hasChanges = true;
                             }
 
+                            if (cursoExistente.ModalidadeId != (cursoDto.ModalidadeId ?? Guid.Empty))
+                            {
+                                cursoExistente.ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty;
+                                hasChanges = true;
+                            }
+
                             if (cursoExistente.Ativo != cursoDto.Ativo)
                             {
                                 cursoExistente.Ativo = cursoDto.Ativo;
                                 hasChanges = true;
                             }
 
-                            if (cursoExistente.ModalidadeId != cursoDto.ModalidadeId)
-                            {
-                                cursoExistente.ModalidadeId = cursoDto.ModalidadeId;
-                                hasChanges = true;
-                            }
-
-                            // Reativar se estava soft-deleted
-                            if (cursoExistente.DeletedAt.HasValue)
-                            {
-                                cursoExistente.DeletedAt = null;
-                                hasChanges = true;
-                            }
-
                             if (hasChanges)
                             {
+                                cursoExistente.UpdatedAt = DateTime.UtcNow;
                                 result.Updated++;
                                 _logger.LogDebug("Curso atualizado: {Nome}", cursoDto.NomeCurso);
                             }
@@ -185,7 +177,6 @@ namespace ApiIntegracao.Services.Implementations
                     _logger.LogWarning("Curso marcado como deletado: {Nome}", curso.NomeCurso);
                 }
 
-                // Salvar todas as alterações
                 await _context.SaveChangesAsync();
 
                 result.Success = true;
@@ -193,17 +184,11 @@ namespace ApiIntegracao.Services.Implementations
                     "Sincronização de cursos concluída: {Inserted} inseridos, {Updated} atualizados, {Deleted} deletados",
                     result.Inserted, result.Updated, result.Deleted);
             }
-            catch (CettproApiException ex)
-            {
-                _logger.LogError(ex, "Erro na API CETTPRO durante sincronização de cursos");
-                result.Success = false;
-                result.Errors.Add($"Erro CETTPRO: {ex.Message}");
-            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erro inesperado durante sincronização de cursos");
+                _logger.LogError(ex, "Erro durante sincronização de cursos");
                 result.Success = false;
-                result.Errors.Add($"Erro geral: {ex.Message}");
+                result.Errors.Add($"Erro: {ex.Message}");
             }
             finally
             {
