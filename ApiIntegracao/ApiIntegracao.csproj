@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<!-- Entity Framework e MySQL -->
+		<PackageReference Include="Castle.Core" Version="5.2.1" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.19" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.19">
 			<PrivateAssets>all</PrivateAssets>
@@ -21,7 +22,7 @@
 		<!-- Background Services e HTTP -->
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="9.0.8" />
-		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.7.0" />
+		<PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.8.0" />
 
 		<!-- Logging Avançado -->
 		<PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
@@ -37,7 +38,7 @@
 		<!-- Testes -->
 		<PackageReference Include="xunit" Version="2.9.3" />
 		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="FluentAssertions" Version="8.5.0" />
+		<PackageReference Include="FluentAssertions" Version="8.6.0" />
 	</ItemGroup>
 
 	<ItemGroup>
