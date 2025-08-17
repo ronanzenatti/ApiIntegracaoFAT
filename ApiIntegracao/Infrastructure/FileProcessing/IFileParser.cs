@@ -1,4 +1,6 @@
 ﻿// Infrastructure/FileProcessing/IFileParser.cs
+using ApiIntegracao.DTOs;
+
 namespace ApiIntegracao.Infrastructure.FileProcessing
 {
     public interface IFileParser
@@ -7,12 +9,4 @@ namespace ApiIntegracao.Infrastructure.FileProcessing
         bool IsValidFile(IFormFile file);
     }
 
-    public class ParticipanteArquivoDto
-    {
-        public string Nome { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public DateTime? EntradaAula { get; set; }
-        public DateTime? SaidaAula { get; set; }
-        public int DuracaoMinutos { get; set; }
-    }
 }

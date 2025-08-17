@@ -2,6 +2,7 @@ using ApiIntegracao.BackgroundServices;
 using ApiIntegracao.Configuration;
 using ApiIntegracao.Data;
 using ApiIntegracao.HealthChecks;
+using ApiIntegracao.Infrastructure.FileProcessing;
 using ApiIntegracao.Infrastructure.HttpClients;
 using ApiIntegracao.Services.Contracts;
 using ApiIntegracao.Services.Implementations;
@@ -10,6 +11,8 @@ using Serilog;
 using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<IFileParser, FileParser>();
 
 // Configuração do Serilog
 Log.Logger = new LoggerConfiguration()
