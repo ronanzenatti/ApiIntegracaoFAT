@@ -21,7 +21,7 @@ namespace ApiIntegracao.Data.Configurations
                 .HasMaxLength(50);
 
             builder.Property(e => e.Descricao)
-                .HasMaxLength(500);
+                .HasColumnType("text");
 
             builder.Property(e => e.IdPortalFat)
                 .HasMaxLength(50);

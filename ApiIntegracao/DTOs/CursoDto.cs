@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using ApiIntegracao.Infrastructure.JsonConverters;
+using System.Text.Json.Serialization;
 
 namespace ApiIntegracao.DTOs
 {
@@ -10,8 +11,8 @@ namespace ApiIntegracao.DTOs
         [JsonPropertyName("nomeCurso")]
         public string NomeCurso { get; set; } = string.Empty;
 
-        // CORREÇÃO: Alterado de int para string? para corresponder à API
         [JsonPropertyName("cargaHoraria")]
+        [JsonConverter(typeof(CargaHorariaToStringConverter))]
         public string? CargaHoraria { get; set; }
 
         [JsonPropertyName("descricao")]
@@ -21,6 +22,7 @@ namespace ApiIntegracao.DTOs
         public bool Ativo { get; set; }
 
         [JsonPropertyName("modalidadeId")]
+        [JsonConverter(typeof(StringToNullableGuidConverter))]
         public Guid? ModalidadeId { get; set; }
     }
 }

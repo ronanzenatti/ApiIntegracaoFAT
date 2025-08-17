@@ -1,10 +1,12 @@
 ﻿using ApiIntegracao.Data;
 using ApiIntegracao.DTOs;
+using ApiIntegracao.Exceptions;
 using ApiIntegracao.Infrastructure.HttpClients;
+using ApiIntegracao.Infrastructure.JsonConverters;
 using ApiIntegracao.Models;
 using ApiIntegracao.Services.Contracts;
 using Microsoft.EntityFrameworkCore;
-
+using System.Text.Json;
 namespace ApiIntegracao.Services.Implementations
 {
     public class SyncService : ISyncService
@@ -68,20 +70,59 @@ namespace ApiIntegracao.Services.Implementations
         public async Task<SyncResult> SyncCursosAsync()
         {
             var result = new SyncResult { StartTime = DateTime.UtcNow };
+            List<ProgramaDto>? programasFromApi = null;
 
             try
             {
                 _logger.LogInformation("Iniciando sincronização de cursos...");
 
-                // CORREÇÃO: A API retorna uma lista de programas, cada um com uma lista de cursos.
-                var programasFromApi = await _cettproClient.GetAsync<List<ProgramaDto>>("api/v1/RetornaCursos");
+                // ETAPA 1: Obter a resposta como um documento JSON genérico em vez de uma lista.
+                // Isto evita o erro de desserialização imediato.
+                var jsonDocument = await _cettproClient.GetAsync<JsonDocument>("api/v1/RetornaCursos");
 
-                // Extrai todos os cursos de todos os programas para uma lista única.
+                if (jsonDocument == null)
+                {
+                    _logger.LogWarning("A API da CETTPRO não retornou dados (resposta nula).");
+                    result.Success = true; // Não é um erro, apenas não há dados.
+                    result.EndTime = DateTime.UtcNow;
+                    await LogSyncResult("Curso", result);
+                    return result;
+                }
+
+                // ETAPA 2: Desserialização manual e segura.
+                // Convertemos o JsonDocument para uma string e tentamos desserializá-la agora.
+                // Isto permite um controlo muito maior e um diagnóstico preciso do erro.
+                try
+                {
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        // Adicione aqui os seus conversores personalizados, se eles forem necessários
+                        // para os campos internos, como 'cargaHoraria' e 'modalidadeId'.
+                        Converters = { new CargaHorariaToStringConverter(), new StringToNullableGuidConverter() }
+                    };
+
+                    // IMPORTANTE: A API DEVOLVE O JSON COMO STRING, TEM QUE PEGAR ASSIM ANTES DE CONVERTER EM JSON.
+                    string rawJson = jsonDocument.RootElement.GetString() ?? "[]";
+                    programasFromApi = JsonSerializer.Deserialize<List<ProgramaDto>>(rawJson, options);
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "Erro final ao tentar desserializar o JSON recebido da CETTPRO. O formato dos dados é inválido.");
+                    // Logar o início do JSON para ajudar a diagnosticar
+                    _logger.LogDebug("Início do JSON recebido: {json}", jsonDocument.RootElement.ToString().Substring(0, 200));
+                    throw new CettproApiException(500, "O formato do JSON retornado pela API de cursos é inválido e não pôde ser processado.", jsonDocument.RootElement.ToString());
+                }
+
+
+                // A partir daqui, a lógica original continua, agora com a certeza de que os dados foram desserializados corretamente.
                 var cursosFromApi = programasFromApi?.SelectMany(p => p.Cursos).ToList();
 
                 if (cursosFromApi == null || !cursosFromApi.Any())
                 {
-                    result.Errors.Add("Nenhum curso retornado pela API");
+                    result.Errors.Add("Nenhum curso encontrado nos programas retornados pela API.");
+                    result.Success = true;
+                    _logger.LogWarning("Nenhum curso foi encontrado nos programas para sincronização.");
                     result.EndTime = DateTime.UtcNow;
                     await LogSyncResult("Curso", result);
                     return result;
@@ -96,8 +137,6 @@ namespace ApiIntegracao.Services.Implementations
                 {
                     try
                     {
-                        idsFromApi.Add(cursoDto.IdCurso);
-
                         var cursoExistente = await _context.Cursos
                             .FirstOrDefaultAsync(c => c.IdCettpro == cursoDto.IdCurso);
 
@@ -107,7 +146,7 @@ namespace ApiIntegracao.Services.Implementations
                             {
                                 IdCettpro = cursoDto.IdCurso,
                                 NomeCurso = cursoDto.NomeCurso,
-                                CargaHoraria = cursoDto.CargaHoraria, // Mapeamento direto de string?
+                                CargaHoraria = cursoDto.CargaHoraria?.ToString(),
                                 Descricao = cursoDto.Descricao,
                                 ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty,
                                 Ativo = cursoDto.Ativo
@@ -119,7 +158,7 @@ namespace ApiIntegracao.Services.Implementations
                         {
                             bool hasChanges = false;
                             if (cursoExistente.NomeCurso != cursoDto.NomeCurso) { cursoExistente.NomeCurso = cursoDto.NomeCurso; hasChanges = true; }
-                            if (cursoExistente.CargaHoraria != cursoDto.CargaHoraria) { cursoExistente.CargaHoraria = cursoDto.CargaHoraria; hasChanges = true; }
+                            if (cursoExistente.CargaHoraria != cursoDto.CargaHoraria?.ToString()) { cursoExistente.CargaHoraria = cursoDto.CargaHoraria?.ToString(); hasChanges = true; }
                             if (cursoExistente.Descricao != cursoDto.Descricao) { cursoExistente.Descricao = cursoDto.Descricao; hasChanges = true; }
                             if (cursoExistente.ModalidadeId != (cursoDto.ModalidadeId ?? Guid.Empty)) { cursoExistente.ModalidadeId = cursoDto.ModalidadeId ?? Guid.Empty; hasChanges = true; }
                             if (cursoExistente.Ativo != cursoDto.Ativo) { cursoExistente.Ativo = cursoDto.Ativo; hasChanges = true; }
@@ -133,8 +172,8 @@ namespace ApiIntegracao.Services.Implementations
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Erro ao processar curso {Id}", cursoDto.IdCurso);
-                        result.Errors.Add($"Erro no curso {cursoDto.NomeCurso}: {ex.Message}");
+                        _logger.LogError(ex, "Erro ao processar o curso com ID CETTPRO {Id}", cursoDto.IdCurso);
+                        result.Errors.Add($"Erro no curso '{cursoDto.NomeCurso}': {ex.Message}");
                     }
                 }
 
@@ -146,20 +185,19 @@ namespace ApiIntegracao.Services.Implementations
                 {
                     curso.DeletedAt = DateTime.UtcNow;
                     result.Deleted++;
-                    _logger.LogWarning("Curso marcado como deletado: {Nome}", curso.NomeCurso);
                 }
 
                 await _context.SaveChangesAsync();
                 result.Success = !result.Errors.Any();
                 _logger.LogInformation(
-                   "Sincronização de cursos concluída: {Inserted} inseridos, {Updated} atualizados, {Deleted} deletados",
+                   "Sincronização de cursos concluída: {Inserted} inseridos, {Updated} atualizados, {Deleted} deletados.",
                    result.Inserted, result.Updated, result.Deleted);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erro durante sincronização de cursos");
+                _logger.LogError(ex, "Falha crítica durante a sincronização de cursos.");
                 result.Success = false;
-                result.Errors.Add($"Erro: {ex.Message}");
+                result.Errors.Add($"Erro geral na sincronização: {ex.Message}");
             }
             finally
             {
