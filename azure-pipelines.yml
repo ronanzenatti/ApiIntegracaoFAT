@@ -1,0 +1,288 @@
+# azure-pipelines.yml
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetVersion: '8.0.x'
+  azureSubscription: 'sua-subscription-aqui'
+  appServiceName: 'api-integracao-fat'
+  resourceGroup: 'rg-api-integracao'
+  
+  # Variáveis de ambiente por stage
+  - group: api-integracao-dev
+  - group: api-integracao-prod
+
+stages:
+# Stage 1: Build e Testes
+- stage: Build
+  displayName: 'Build e Testes'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build da Aplicação'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    # Instalar .NET SDK
+    - task: UseDotNet@2
+      displayName: 'Instalar .NET SDK'
+      inputs:
+        version: $(dotnetVersion)
+        includePreviewVersions: false
+
+    # Restaurar dependências
+    - task: DotNetCoreCLI@2
+      displayName: 'Restaurar Dependências'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+
+    # Build do projeto
+    - task: DotNetCoreCLI@2
+      displayName: 'Build'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    # Executar testes unitários
+    - task: DotNetCoreCLI@2
+      displayName: 'Executar Testes'
+      inputs:
+        command: 'test'
+        projects: '**/*Tests.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage"'
+
+    # Publicar artefatos
+    - task: DotNetCoreCLI@2
+      displayName: 'Publicar Aplicação'
+      inputs:
+        command: 'publish'
+        publishWebProjects: true
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+        zipAfterPublish: true
+
+    # Upload dos artefatos
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publicar Artefatos'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'drop'
+
+# Stage 2: Deploy em Desenvolvimento
+- stage: DeployDev
+  displayName: 'Deploy em Desenvolvimento'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  
+  jobs:
+  # Job 1: Executar Migrations
+  - deployment: DatabaseMigration
+    displayName: 'Executar Migrations no Banco'
+    environment: 'development'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Download dos artefatos
+          - download: current
+            artifact: drop
+
+          # Instalar EF Core tools
+          - task: DotNetCoreCLI@2
+            displayName: 'Instalar EF Core Tools'
+            inputs:
+              command: custom
+              custom: tool
+              arguments: 'install --global dotnet-ef --version 8.0.*'
+
+          # Executar migrations
+          - script: |
+              echo "Executando migrations no banco de desenvolvimento..."
+              dotnet ef database update \
+                --project $(Pipeline.Workspace)/drop/ApiIntegracao.zip \
+                --connection "$(ConnectionString_Dev)" \
+                --verbose
+            displayName: 'Aplicar Migrations'
+            env:
+              ConnectionString_Dev: $(ConnectionString_Dev)
+
+  # Job 2: Deploy da Aplicação
+  - deployment: DeployApp
+    displayName: 'Deploy da Aplicação'
+    dependsOn: DatabaseMigration
+    environment: 'development'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Deploy no Azure App Service
+          - task: AzureWebApp@1
+            displayName: 'Deploy no App Service'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: 'webAppLinux'
+              appName: '$(appServiceName)-dev'
+              package: '$(Pipeline.Workspace)/drop/**/*.zip'
+              runtimeStack: 'DOTNETCORE|8.0'
+
+# Stage 3: Deploy em Produção
+- stage: DeployProd
+  displayName: 'Deploy em Produção'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  
+  jobs:
+  # Aprovação manual
+  - job: WaitForApproval
+    displayName: 'Aguardar Aprovação'
+    pool: server
+    steps:
+    - task: ManualValidation@0
+      inputs:
+        notifyUsers: 'equipe@empresa.com'
+        instructions: 'Revisar e aprovar deploy em produção'
+        timeoutInMinutes: 1440
+
+  # Job 1: Backup do Banco
+  - job: BackupDatabase
+    displayName: 'Backup do Banco de Produção'
+    dependsOn: WaitForApproval
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Criar Backup do Banco'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          # Script para backup do MySQL no Azure
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_NAME="backup_prod_$TIMESTAMP.sql"
+          
+          echo "Criando backup: $BACKUP_NAME"
+          
+          # Comando de backup (ajustar conforme sua configuração)
+          mysqldump -h $(DB_HOST_PROD) \
+                    -u $(DB_USER_PROD) \
+                    -p$(DB_PASSWORD_PROD) \
+                    $(DB_NAME_PROD) > $BACKUP_NAME
+          
+          # Upload para Azure Storage
+          az storage blob upload \
+            --account-name $(STORAGE_ACCOUNT) \
+            --container-name backups \
+            --name $BACKUP_NAME \
+            --file $BACKUP_NAME
+
+  # Job 2: Executar Migrations
+  - deployment: DatabaseMigrationProd
+    displayName: 'Executar Migrations em Produção'
+    dependsOn: BackupDatabase
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Instalar EF Core Tools'
+            inputs:
+              command: custom
+              custom: tool
+              arguments: 'install --global dotnet-ef --version 8.0.*'
+
+          # Gerar script de migration primeiro (para revisão)
+          - script: |
+              echo "Gerando script de migration..."
+              dotnet ef migrations script \
+                --project $(Pipeline.Workspace)/drop/ApiIntegracao.zip \
+                --output migration-script.sql \
+                --idempotent
+              
+              echo "Script gerado com sucesso"
+            displayName: 'Gerar Script de Migration'
+
+          # Aplicar migrations
+          - script: |
+              echo "Aplicando migrations em produção..."
+              dotnet ef database update \
+                --project $(Pipeline.Workspace)/drop/ApiIntegracao.zip \
+                --connection "$(ConnectionString_Prod)" \
+                --verbose
+            displayName: 'Aplicar Migrations'
+            env:
+              ConnectionString_Prod: $(ConnectionString_Prod)
+
+  # Job 3: Deploy da Aplicação
+  - deployment: DeployAppProd
+    displayName: 'Deploy da Aplicação em Produção'
+    dependsOn: DatabaseMigrationProd
+    environment: 'production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # Deploy com slot de staging primeiro
+          - task: AzureWebApp@1
+            displayName: 'Deploy no Slot de Staging'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appType: 'webAppLinux'
+              appName: $(appServiceName)
+              deployToSlotOrASE: true
+              slotName: 'staging'
+              package: '$(Pipeline.Workspace)/drop/**/*.zip'
+              runtimeStack: 'DOTNETCORE|8.0'
+
+          # Health check do staging
+          - script: |
+              echo "Verificando saúde do staging..."
+              for i in {1..10}; do
+                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://$(appServiceName)-staging.azurewebsites.net/health)
+                if [ $HTTP_CODE -eq 200 ]; then
+                  echo "Staging está saudável"
+                  exit 0
+                fi
+                echo "Tentativa $i: HTTP $HTTP_CODE"
+                sleep 10
+              done
+              echo "Staging não está respondendo corretamente"
+              exit 1
+            displayName: 'Verificar Saúde do Staging'
+
+          # Swap slots (staging -> production)
+          - task: AzureAppServiceManage@0
+            displayName: 'Swap Staging com Production'
+            inputs:
+              azureSubscription: $(azureSubscription)
+              action: 'Swap Slots'
+              webAppName: $(appServiceName)
+              resourceGroupName: $(resourceGroup)
+              sourceSlot: 'staging'
+              targetSlot: 'production'

@@ -2,7 +2,7 @@
 
 namespace ApiIntegracao.Models
 {
-    public class Matricula: AuditableEntity
+    public class Matricula : AuditableEntity
     {
         public Guid IdCettpro { get; set; }
         public Guid AlunoId { get; set; }
