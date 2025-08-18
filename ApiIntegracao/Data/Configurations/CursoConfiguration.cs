@@ -23,8 +23,7 @@ namespace ApiIntegracao.Data.Configurations
             builder.Property(e => e.Descricao)
                 .HasColumnType("text");
 
-            builder.Property(e => e.IdPortalFat)
-                .HasMaxLength(50);
+            builder.Property(e => e.IdPortalFat);
 
             builder.HasIndex(e => e.IdCettpro)
                 .IsUnique()

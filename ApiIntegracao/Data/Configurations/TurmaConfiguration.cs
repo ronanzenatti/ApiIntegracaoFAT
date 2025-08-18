@@ -17,11 +17,9 @@ namespace ApiIntegracao.Data.Configurations
                 .IsRequired()
                 .HasMaxLength(300);
 
-            builder.Property(e => e.IdPortalFat)
-                .HasMaxLength(50);
+            builder.Property(e => e.IdPortalFat);
 
-            builder.Property(e => e.DisciplinaIdPortalFat)
-                .HasMaxLength(50);
+            builder.Property(e => e.DisciplinaIdPortalFat);
 
             builder.Property(e => e.DisciplinaNomePortalFat)
                 .HasMaxLength(200);
