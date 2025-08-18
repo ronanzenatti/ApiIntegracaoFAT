@@ -47,6 +47,7 @@
 	<ItemGroup>
 		<Folder Include="Helpers\" />
 		<Folder Include="Infrastructure\Email\" />
+		<Folder Include="logs\" />
 		<Folder Include="Middleware\" />
 	</ItemGroup>
 
