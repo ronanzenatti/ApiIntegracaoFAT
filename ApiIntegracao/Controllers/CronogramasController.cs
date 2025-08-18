@@ -1,4 +1,5 @@
 ﻿using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.ApiIntegracao.DTOs;
 using ApiIntegracao.Services.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
