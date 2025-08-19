@@ -1,59 +1,50 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace ApiIntegracao.Controllers
 {
-    /// <summary>
-    /// Controller para verificação de saúde e disponibilidade da API.
-    /// </summary>
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Produces("application/json")]
-    [Authorize]
     public class HealthController : ControllerBase
     {
-        private readonly ILogger<HealthController> _logger;
+        private readonly HealthCheckService _healthCheckService;
 
-        public HealthController(ILogger<HealthController> logger)
+        public HealthController(HealthCheckService healthCheckService)
         {
-            _logger = logger;
+            _healthCheckService = healthCheckService;
         }
 
         /// <summary>
-        /// Verifica se a API está online e respondendo a requisições.
+        /// Obtém o status de saúde detalhado da API e suas dependências.
         /// </summary>
-        /// <remarks>
-        /// Este é um endpoint de "ping" básico. Para um relatório de saúde detalhado 
-        /// (incluindo status do banco de dados e da API CETTPRO), acesse o endpoint `/health`.
-        /// </remarks>
-        /// <returns>Status de operação da API.</returns>
+        /// <returns>Um relatório detalhado do status de saúde.</returns>
         [HttpGet]
-        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public IActionResult GetHealthStatus()
+        [ProducesResponseType(typeof(HealthReport), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(HealthReport), StatusCodes.Status503ServiceUnavailable)]
+        public async Task<IActionResult> GetHealth()
         {
-            try
+            var report = await _healthCheckService.CheckHealthAsync();
+
+            var response = new
             {
-                var response = new
+                status = report.Status.ToString(),
+                totalDuration = report.TotalDuration.TotalMilliseconds,
+                results = report.Entries.Select(e => new
                 {
-                    Status = "Healthy",
-                    Timestamp = DateTime.UtcNow,
-                    Message = "API Integração FAT está operacional."
-                };
+                    key = e.Key,
+                    status = e.Value.Status.ToString(),
+                    description = e.Value.Description,
+                    duration = e.Value.Duration.TotalMilliseconds,
+                    data = e.Value.Data
+                })
+            };
 
-                _logger.LogInformation("Health check 'ping' executado com sucesso.");
-
+            if (report.Status == HealthStatus.Healthy)
+            {
                 return Ok(response);
             }
-            catch (Exception ex)
-            {
-                _logger.LogCritical(ex, "Ocorreu um erro crítico no endpoint de health check.");
-                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-                {
-                    Title = "Erro Crítico de Saúde",
-                    Detail = "A API encontrou um erro crítico e pode estar inoperante."
-                });
-            }
+
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
         }
     }
 }
