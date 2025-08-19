@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Cronograma
 {
     /// <summary>
     /// Enum para os formatos de exportação de arquivos.

@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Frequencia
 {
 
     public class FrequenciaResponseDto

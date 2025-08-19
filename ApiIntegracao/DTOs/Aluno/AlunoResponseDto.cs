@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Aluno
 {
     /// <summary>
     /// DTO de resposta para dados de um Aluno

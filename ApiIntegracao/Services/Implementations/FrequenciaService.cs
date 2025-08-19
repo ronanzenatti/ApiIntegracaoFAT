@@ -1,6 +1,6 @@
 ﻿// Services/Implementations/FrequenciaService.cs
 using ApiIntegracao.Data;
-using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Frequencia;
 using ApiIntegracao.Exceptions;
 using ApiIntegracao.Infrastructure.FileProcessing;
 using ApiIntegracao.Infrastructure.HttpClients;

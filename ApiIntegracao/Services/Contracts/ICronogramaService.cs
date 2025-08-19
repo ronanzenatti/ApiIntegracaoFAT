@@ -1,5 +1,6 @@
-﻿using ApiIntegracao.DTOs;
-using ApiIntegracao.DTOs.ApiIntegracao.DTOs;
+﻿using ApiIntegracao.DTOs.ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Cronograma;
+using ApiIntegracao.DTOs.Frequencia;
 
 namespace ApiIntegracao.Services.Contracts
 {

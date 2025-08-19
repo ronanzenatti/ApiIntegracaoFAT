@@ -1,5 +1,6 @@
 ﻿using ApiIntegracao.Data;
 using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Turma;
 using ApiIntegracao.Exceptions;
 using ApiIntegracao.Infrastructure.HttpClients;
 using ApiIntegracao.Infrastructure.JsonConverters;

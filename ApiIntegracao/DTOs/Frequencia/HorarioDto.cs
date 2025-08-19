@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ApiIntegracao.DTOs
+namespace ApiIntegracao.DTOs.Frequencia
 {
     /// <summary>
     /// DTO para representar um horário de aula

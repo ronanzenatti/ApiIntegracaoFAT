@@ -1,6 +1,7 @@
-﻿using System.Text.Json.Serialization;
+﻿using ApiIntegracao.DTOs.Curso;
+using System.Text.Json.Serialization;
 
-namespace ApiIntegracao.DTOs
+namespace ApiIntegracao.DTOs.Turma
 {
     public class TurmaDto
     {

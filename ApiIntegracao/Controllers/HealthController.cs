@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ApiIntegracao.Controllers
 {
@@ -8,6 +9,7 @@ namespace ApiIntegracao.Controllers
     [ApiController]
     [Route("api/v1/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class HealthController : ControllerBase
     {
         private readonly ILogger<HealthController> _logger;

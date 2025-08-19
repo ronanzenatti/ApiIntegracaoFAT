@@ -1,6 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using ApiIntegracao.DTOs.Aluno;
+using System.ComponentModel.DataAnnotations;
 
-namespace ApiIntegracao.DTOs
+namespace ApiIntegracao.DTOs.Frequencia
 {
     public class FrequenciaRequestDto
     {

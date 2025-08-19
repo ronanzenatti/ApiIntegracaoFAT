@@ -1,6 +1,7 @@
 ﻿using ApiIntegracao.Data;
-using ApiIntegracao.DTOs;
 using ApiIntegracao.DTOs.ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Cronograma;
+using ApiIntegracao.DTOs.Frequencia;
 using ApiIntegracao.Models;
 using ApiIntegracao.Services.Contracts;
 using Microsoft.EntityFrameworkCore;

@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using ApiIntegracao.DTOs.Curso;
+using System.Text.Json.Serialization;
 
 namespace ApiIntegracao.DTOs
 {

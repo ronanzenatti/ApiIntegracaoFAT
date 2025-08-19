@@ -1,4 +1,4 @@
-﻿using ApiIntegracao.DTOs;
+﻿using ApiIntegracao.DTOs.Frequencia;
 
 namespace ApiIntegracao.Services.Contracts
 {

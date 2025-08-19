@@ -1,5 +1,6 @@
 ﻿// Services/Implementations/AttendanceProcessor.cs
 using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Frequencia;
 using ApiIntegracao.Infrastructure.FileProcessing;
 using ApiIntegracao.Models;
 using ApiIntegracao.Services.Contracts;

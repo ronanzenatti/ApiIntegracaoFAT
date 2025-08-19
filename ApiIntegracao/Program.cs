@@ -3,9 +3,13 @@ using ApiIntegracao.Configuration;
 using ApiIntegracao.Data;
 using ApiIntegracao.Extensions;
 using ApiIntegracao.HealthChecks;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models; // Adicionado para o OpenApiSecurityScheme
 using Serilog;
 using Serilog.Events;
+using System.Text;
 
 // Configuração do Serilog
 Log.Logger = new LoggerConfiguration()
@@ -39,11 +43,75 @@ try
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
         .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
         .AddEnvironmentVariables()
-        .AddUserSecrets<Program>(optional: true); // Para desenvolvimento seguro
+        .AddUserSecrets<Program>(optional: true);
 
-    // Configurar services usando extension methods
+    // --- Configuração JWT (Correta como estava) ---
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+    var secretKey = jwtSettings["SecretKey"];
+
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        };
+    });
+    builder.Services.AddAuthorization();
+
+    // --- Configurar services ---
     builder.Services.AddControllers();
-    builder.Services.AddSwagger();
+
+    // --- CONFIGURAÇÃO DO SWAGGER COM SUPORTE A JWT ---
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "API Integração FAT",
+            Version = "v1",
+            Description = "API de integração entre CETTPRO e Portal FAT"
+        });
+
+        // Adiciona o campo para inserir o token JWT na UI do Swagger
+        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description = "Insira o seu token obtido no endpoint auth"
+        });
+
+        // Aplica a exigência de segurança a todos os endpoints
+        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                new string[] {}
+            }
+        });
+    });
+    // --- FIM DA CONFIGURAÇÃO DO SWAGGER ---
+
+    // Outros Services
     builder.Services.AddDatabase(builder.Configuration);
     builder.Services.AddCettproHttpClient(builder.Configuration);
     builder.Services.AddApiServices();
@@ -60,15 +128,15 @@ try
     // Memory Cache
     builder.Services.AddMemoryCache(options =>
     {
-        options.SizeLimit = 100; // Limite de 100 itens
-        options.CompactionPercentage = 0.25; // Compactar 25% quando atingir o limite
+        options.SizeLimit = 100;
+        options.CompactionPercentage = 0.25;
     });
 
     // Configuração de opções
     builder.Services.Configure<SyncSettings>(builder.Configuration.GetSection("SyncSettings"));
     builder.Services.Configure<CettproApiSettings>(builder.Configuration.GetSection("CettproApi"));
 
-    // Application Insights (opcional)
+    // Application Insights
     var appInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
     if (!string.IsNullOrEmpty(appInsightsConnectionString))
     {
@@ -98,7 +166,6 @@ try
 }
 catch (HostAbortedException)
 {
-    // Esperado quando o host é parado graciosamente
     Log.Information("Host shutdown gracefully");
 }
 catch (Exception ex)
@@ -111,17 +178,15 @@ finally
     Log.CloseAndFlush();
 }
 
-// Métodos auxiliares locais
+// Métodos auxiliares
 void ConfigureMiddleware(WebApplication app)
 {
-    // Exception handling
     if (!app.Environment.IsDevelopment())
     {
         app.UseExceptionHandler("/error");
         app.UseHsts();
     }
 
-    // Swagger
     if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
     {
         app.UseSwagger();
@@ -135,7 +200,6 @@ void ConfigureMiddleware(WebApplication app)
         });
     }
 
-    // Request logging
     app.UseSerilogRequestLogging(options =>
     {
         options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
@@ -145,7 +209,7 @@ void ConfigureMiddleware(WebApplication app)
                 return LogEventLevel.Error;
             if (httpContext.Response.StatusCode >= 400)
                 return LogEventLevel.Warning;
-            if (elapsed > 3000) // Requisições lentas
+            if (elapsed > 3000)
                 return LogEventLevel.Warning;
             return LogEventLevel.Information;
         };
@@ -158,7 +222,6 @@ void ConfigureMiddleware(WebApplication app)
         };
     });
 
-    // Security headers
     app.Use(async (context, next) =>
     {
         context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
@@ -171,15 +234,12 @@ void ConfigureMiddleware(WebApplication app)
     app.UseHttpsRedirection();
     app.UseCors("AllowPortalFat");
 
-    // Rate limiting (quando implementar)
-    // app.UseRateLimiter();
-
+    // Middlewares de autenticação e autorização
     app.UseAuthentication();
     app.UseAuthorization();
 
     app.MapControllers();
 
-    // Health checks com UI
     app.MapHealthChecks("/health");
     app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
     {
@@ -229,7 +289,6 @@ async Task ApplyMigrationsAsync(WebApplication app)
     catch (Exception ex)
     {
         Log.Error(ex, "An error occurred while migrating the database");
-        // Em desenvolvimento, você pode querer que a aplicação falhe se as migrations não funcionarem
         if (app.Environment.IsDevelopment())
         {
             throw;
@@ -237,5 +296,4 @@ async Task ApplyMigrationsAsync(WebApplication app)
     }
 }
 
-// Tornar a classe Program pública para testes
 public partial class Program { }

@@ -1,4 +1,6 @@
-﻿namespace ApiIntegracao.DTOs
+﻿using ApiIntegracao.DTOs.Curso;
+
+namespace ApiIntegracao.DTOs.Turma
 {
     /// <summary>
     /// DTO de resposta básica para turma

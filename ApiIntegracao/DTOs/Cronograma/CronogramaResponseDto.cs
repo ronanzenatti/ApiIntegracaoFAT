@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Cronograma
 {
     /// <summary>
     /// DTO de resposta da geração de cronograma

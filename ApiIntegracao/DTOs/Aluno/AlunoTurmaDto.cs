@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Aluno
 {
     /// <summary>
     /// DTO para aluno vinculado a uma turma

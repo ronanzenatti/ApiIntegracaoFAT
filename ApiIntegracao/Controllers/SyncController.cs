@@ -1,5 +1,6 @@
 ﻿using ApiIntegracao.DTOs.Responses;
 using ApiIntegracao.Services.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ApiIntegracao.Controllers
@@ -10,6 +11,7 @@ namespace ApiIntegracao.Controllers
     [ApiController]
     [Route("api/v1/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class SyncController : ControllerBase
     {
         private readonly ISyncService _syncService;

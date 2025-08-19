@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Cronograma
 {
     /// <summary>
     /// DTO para listagem resumida de cronogramas

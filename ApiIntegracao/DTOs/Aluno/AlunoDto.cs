@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace ApiIntegracao.DTOs
+namespace ApiIntegracao.DTOs.Aluno
 {
     public class AlunoDto
     {

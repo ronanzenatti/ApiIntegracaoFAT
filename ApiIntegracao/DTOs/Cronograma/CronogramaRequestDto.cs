@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using ApiIntegracao.DTOs.Frequencia;
+using System.ComponentModel.DataAnnotations;
 
 namespace ApiIntegracao.DTOs
 {

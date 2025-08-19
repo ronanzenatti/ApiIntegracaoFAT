@@ -1,5 +1,5 @@
 ﻿// Services/Contracts/IEmailUpdater.cs
-using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Aluno;
 
 namespace ApiIntegracao.Services.Contracts
 {

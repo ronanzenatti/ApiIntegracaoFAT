@@ -1,4 +1,6 @@
-﻿namespace ApiIntegracao.DTOs
+﻿using ApiIntegracao.DTOs.Frequencia;
+
+namespace ApiIntegracao.DTOs.Cronograma
 {
     /// <summary>
     /// DTO com detalhes completos de um cronograma

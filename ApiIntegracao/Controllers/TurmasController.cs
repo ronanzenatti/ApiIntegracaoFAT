@@ -1,7 +1,10 @@
 ﻿using ApiIntegracao.Data;
-using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Aluno;
+using ApiIntegracao.DTOs.Curso;
 using ApiIntegracao.DTOs.Responses;
+using ApiIntegracao.DTOs.Turma;
 using ApiIntegracao.Services.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +16,7 @@ namespace ApiIntegracao.Controllers
     [ApiController]
     [Route("api/v1/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class TurmasController : ControllerBase
     {
         private readonly ApiIntegracaoDbContext _context;

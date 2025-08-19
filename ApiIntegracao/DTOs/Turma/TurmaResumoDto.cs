@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Turma
 {
     /// <summary>
     /// DTO para resumo de turma (listagens simplificadas)

@@ -1,7 +1,7 @@
 ﻿using ApiIntegracao.Infrastructure.JsonConverters;
 using System.Text.Json.Serialization;
 
-namespace ApiIntegracao.DTOs
+namespace ApiIntegracao.DTOs.Curso
 {
     public class CursoDto
     {

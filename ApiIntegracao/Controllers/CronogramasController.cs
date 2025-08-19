@@ -1,6 +1,7 @@
-﻿using ApiIntegracao.DTOs;
-using ApiIntegracao.DTOs.ApiIntegracao.DTOs;
+﻿using ApiIntegracao.DTOs.ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Cronograma;
 using ApiIntegracao.Services.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ApiIntegracao.Controllers
@@ -11,6 +12,7 @@ namespace ApiIntegracao.Controllers
     [ApiController]
     [Route("api/v1/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class CronogramasController : ControllerBase
     {
         private readonly ICronogramaService _cronogramaService;

@@ -1,4 +1,4 @@
-﻿namespace ApiIntegracao.DTOs
+﻿namespace ApiIntegracao.DTOs.Curso
 {
     /// <summary>
     /// DTO de resposta para curso

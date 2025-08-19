@@ -1,6 +1,7 @@
-﻿using ApiIntegracao.DTOs;
+﻿using ApiIntegracao.DTOs.Frequencia;
 using ApiIntegracao.Exceptions;
 using ApiIntegracao.Services.Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -12,6 +13,7 @@ namespace ApiIntegracao.Controllers
     [ApiController]
     [Route("api/v1/[controller]")]
     [Produces("application/json")]
+    [Authorize]
     public class FrequenciaController : ControllerBase
     {
         private readonly IFrequenciaService _frequenciaService;
