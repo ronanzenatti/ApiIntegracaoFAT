@@ -207,21 +207,29 @@ void ConfigureMiddleware(WebApplication app)
         app.UseHsts();
     }
 
-    if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
     {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Integração FAT v1");
-            c.RoutePrefix = string.Empty;
-            c.DisplayRequestDuration();
-            c.EnableDeepLinking();
-            c.ShowExtensions();
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Integração FAT v1");
+        c.RoutePrefix = string.Empty;
+        c.DisplayRequestDuration();
+        c.EnableDeepLinking();
+        c.ShowExtensions();
 
-            // --- OCULTAR OS SCHEMAS ---
-            c.DefaultModelsExpandDepth(-1);
-        });
-    }
+        // --- OCULTAR OS SCHEMAS ---
+        c.DefaultModelsExpandDepth(-1);
+    });
+
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path == "/")
+        {
+            context.Response.Redirect("/index.html", permanent: false);
+            return;
+        }
+        await next();
+    });
+
 
     app.UseSerilogRequestLogging(options =>
     {
