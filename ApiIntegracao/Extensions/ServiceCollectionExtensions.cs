@@ -29,7 +29,7 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<ApiIntegracaoDbContext>(options =>
             options.UseMySql(connectionString,
-                ServerVersion.AutoDetect(connectionString),
+                ServerVersion.Parse("8.0.36-mysql"),
                 mysqlOptions =>
                 {
                     mysqlOptions.EnableRetryOnFailure(
