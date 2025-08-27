@@ -3,6 +3,7 @@ using ApiIntegracao.Configuration;
 using ApiIntegracao.Data;
 using ApiIntegracao.Extensions;
 using ApiIntegracao.HealthChecks;
+using ApiIntegracao.Infrastructure.Swagger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -82,6 +83,14 @@ try
             Description = "API de integração entre CETTPRO e Portal FAT"
         });
 
+        // --- INCLUIR OS COMENTÁRIOS XML ---
+        var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        c.IncludeXmlComments(xmlPath);
+
+        // --- REGISTRAR OS FILTROS ---
+        c.SchemaFilter<LoginRequestSchemaFilter>();
+
         // Adiciona o campo para inserir o token JWT na UI do Swagger
         c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
@@ -90,7 +99,7 @@ try
             Scheme = "bearer",
             BearerFormat = "JWT",
             In = ParameterLocation.Header,
-            Description = "Insira o seu token obtido no endpoint auth"
+            Description = "Insira o seu token obtido no endpoint auth \n Usuário: PortalFAT_App \n Secret: UMA_SENHA_FORTE_E_SECRETA_PARA_O_PORTAL_GERADA_AQUI"
         });
 
         // Aplica a exigência de segurança a todos os endpoints
@@ -107,6 +116,17 @@ try
                 },
                 new string[] {}
             }
+        });
+
+        // Ordena os endpoints, colocando "Auth" no topo
+        c.OrderActionsBy(apiDesc =>
+        {
+            var relativePath = apiDesc.RelativePath ?? "";
+            if (relativePath.StartsWith("api/v1/Auth", StringComparison.OrdinalIgnoreCase))
+            {
+                return "0"; // Coloca no topo
+            }
+            return apiDesc.RelativePath; // Ordena os outros pelo caminho
         });
     });
     // --- FIM DA CONFIGURAÇÃO DO SWAGGER ---
@@ -197,6 +217,9 @@ void ConfigureMiddleware(WebApplication app)
             c.DisplayRequestDuration();
             c.EnableDeepLinking();
             c.ShowExtensions();
+
+            // --- OCULTAR OS SCHEMAS ---
+            c.DefaultModelsExpandDepth(-1);
         });
     }
 
