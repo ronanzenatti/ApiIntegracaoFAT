@@ -30,7 +30,7 @@ jobs:
         run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: .net-app
           path: ${{env.DOTNET_ROOT}}/myapp
@@ -44,16 +44,17 @@ jobs:
 
     steps:
       # ==================================================================
-      # ALTERA«√O 1: FAZER CHECKOUT DO C”DIGO FONTE
-      # Adicionamos este passo para que o job tenha acesso ‡ estrutura de arquivos do projeto.
+      # ALTERA√á√ÉO 1: FAZER CHECKOUT DO C√ìDIGO FONTE
+      # Adicionamos este passo para que o job tenha acesso √† estrutura de arquivos do projeto.
       - name: Checkout repository
         uses: actions/checkout@v4
       # ==================================================================
 
       - name: Download artifact from build job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: .net-app
+          path: ./deployment
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -62,15 +63,21 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4501437E89344FE9BE8FB80C4A9DA5E0 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_16B262A420D745628D34D72E3B8001FA }}
 
+      # CORRE√á√ÉO 3: Instalar .NET SDK novamente no job de deploy e usar caminho correto
+      - name: Set up .NET Core for migrations
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+
       # ==================================================================
       # Este passo foi adicionado para instalar as ferramentas do EF Core
       # e executar as migrations no banco de dados do Azure antes do deploy.
-      # Utiliza um secret do repositÛrio para a string de conex„o.
+      # Utiliza um secret do reposit√≥rio para a string de conex√£o.
       - name: Run EF Core Migrations
         run: |
           dotnet tool install --global dotnet-ef
           dotnet ef database update --project ApiIntegracao/ApiIntegracao.csproj --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
-      # FIM DA ALTERA«√O
+      # FIM DA ALTERA√á√ÉO
       # ==================================================================
 
       - name: Deploy to Azure Web App
@@ -79,6 +86,7 @@ jobs:
         with:
           app-name: 'apifat'
           slot-name: 'Production'
-          package: .
+          package: ./deployment
 
           
+
