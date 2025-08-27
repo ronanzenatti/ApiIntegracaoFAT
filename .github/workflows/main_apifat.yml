@@ -55,6 +55,17 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4501437E89344FE9BE8FB80C4A9DA5E0 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_16B262A420D745628D34D72E3B8001FA }}
 
+      # ==================================================================
+      # Este passo foi adicionado para instalar as ferramentas do EF Core
+      # e executar as migrations no banco de dados do Azure antes do deploy.
+      # Utiliza um secret do repositório para a string de conexão.
+      - name: Run EF Core Migrations
+        run: |
+          dotnet tool install --global dotnet-ef
+          dotnet ef database update --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
+      # FIM DA ALTERAÇÃO
+      # ==================================================================
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
