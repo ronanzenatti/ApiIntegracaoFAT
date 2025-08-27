@@ -11,7 +11,7 @@ trigger:
 
 variables:
   buildConfiguration: 'Release'
-  dotnetVersion: '8.0.x'
+  dotnetVersion: '9.0.x'
   azureSubscription: 'sua-subscription-aqui'
   appServiceName: 'api-integracao-fat'
   resourceGroup: 'rg-api-integracao'
