@@ -1,4 +1,4 @@
-using ApiIntegracao.BackgroundServices;
+Ôªøusing ApiIntegracao.BackgroundServices;
 using ApiIntegracao.Configuration;
 using ApiIntegracao.Data;
 using ApiIntegracao.Extensions;
@@ -12,7 +12,7 @@ using Serilog;
 using Serilog.Events;
 using System.Text;
 
-// ConfiguraÁ„o do Serilog
+// Configura√ß√£o do Serilog
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -32,21 +32,21 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    Log.Information("Starting API IntegraÁ„o FAT");
+    Log.Information("Starting API Integra√ß√£o FAT");
 
     var builder = WebApplication.CreateBuilder(args);
 
     // Usar Serilog
     builder.Host.UseSerilog();
 
-    // Adicionar configuraÁıes
+    // Adicionar configura√ß√µes
     builder.Configuration
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
         .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
         .AddEnvironmentVariables()
         .AddUserSecrets<Program>(optional: true);
 
-    // --- ConfiguraÁ„o JWT (Correta como estava) ---
+    // --- Configura√ß√£o JWT (Correta como estava) ---
     var jwtSettings = builder.Configuration.GetSection("JwtSettings");
     var secretKey = jwtSettings["SecretKey"];
 
@@ -73,17 +73,17 @@ try
     // --- Configurar services ---
     builder.Services.AddControllers();
 
-    // --- CONFIGURA«√O DO SWAGGER COM SUPORTE A JWT ---
+    // --- CONFIGURA√á√ÉO DO SWAGGER COM SUPORTE A JWT ---
     builder.Services.AddSwaggerGen(c =>
     {
         c.SwaggerDoc("v1", new OpenApiInfo
         {
-            Title = "API IntegraÁ„o FAT",
+            Title = "API Integra√ß√£o FAT",
             Version = "v1",
-            Description = "API de integraÁ„o entre CETTPRO e Portal FAT"
+            Description = "API de integra√ß√£o entre CETTPRO e Portal FAT"
         });
 
-        // --- INCLUIR OS COMENT¡RIOS XML ---
+        // --- INCLUIR OS COMENT√ÅRIOS XML ---
         var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
         var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
         c.IncludeXmlComments(xmlPath);
@@ -99,10 +99,10 @@ try
             Scheme = "bearer",
             BearerFormat = "JWT",
             In = ParameterLocation.Header,
-            Description = "Insira o seu token obtido no endpoint auth \n Usu·rio: PortalFAT_App \n Secret: UMA_SENHA_FORTE_E_SECRETA_PARA_O_PORTAL_GERADA_AQUI"
+            Description = "Insira o seu token obtido no endpoint auth \n Usu√°rio: PortalFAT_App \n Secret: UMA_SENHA_FORTE_E_SECRETA_PARA_O_PORTAL_GERADA_AQUI"
         });
 
-        // Aplica a exigÍncia de seguranÁa a todos os endpoints
+        // Aplica a exig√™ncia de seguran√ßa a todos os endpoints
         c.AddSecurityRequirement(new OpenApiSecurityRequirement
         {
             {
@@ -129,7 +129,7 @@ try
             return apiDesc.RelativePath; // Ordena os outros pelo caminho
         });
     });
-    // --- FIM DA CONFIGURA«√O DO SWAGGER ---
+    // --- FIM DA CONFIGURA√á√ÉO DO SWAGGER ---
 
     // Outros Services
     builder.Services.AddDatabase(builder.Configuration);
@@ -152,7 +152,7 @@ try
         options.CompactionPercentage = 0.25;
     });
 
-    // ConfiguraÁ„o de opÁıes
+    // Configura√ß√£o de op√ß√µes
     builder.Services.Configure<SyncSettings>(builder.Configuration.GetSection("SyncSettings"));
     builder.Services.Configure<CettproApiSettings>(builder.Configuration.GetSection("CettproApi"));
 
@@ -198,7 +198,7 @@ finally
     Log.CloseAndFlush();
 }
 
-// MÈtodos auxiliares
+// M√©todos auxiliares
 void ConfigureMiddleware(WebApplication app)
 {
     if (!app.Environment.IsDevelopment())
@@ -210,7 +210,7 @@ void ConfigureMiddleware(WebApplication app)
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API IntegraÁ„o FAT v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Integra√ß√£o FAT v1");
         c.RoutePrefix = string.Empty;
         c.DisplayRequestDuration();
         c.EnableDeepLinking();
@@ -265,7 +265,7 @@ void ConfigureMiddleware(WebApplication app)
     app.UseHttpsRedirection();
     app.UseCors("AllowPortalFat");
 
-    // Middlewares de autenticaÁ„o e autorizaÁ„o
+    // Middlewares de autentica√ß√£o e autoriza√ß√£o
     app.UseAuthentication();
     app.UseAuthorization();
 
