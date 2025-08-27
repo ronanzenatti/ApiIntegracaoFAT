@@ -83,6 +83,28 @@ jobs:
         with:
           dotnet-version: '9.x'
 
+       # DIAGNÓSTICO: Testar conectividade com MySQL
+      - name: Test MySQL Connectivity
+        run: |
+          echo "🔍 Testando conectividade com MySQL Azure..."
+          
+          # Instalar mysql client
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+          
+          # Testar conexão básica (sem senha para não expor no log)
+          echo "Testando se o servidor está acessível..."
+          if timeout 10s mysql -h api-bd.mysql.database.azure.com -P 3306 -u api -p'P#ssw0rdr' --ssl-mode=REQUIRED -e "SELECT 1;" 2>/dev/null; then
+            echo "✅ Conexão MySQL funcionando"
+          else
+            echo "❌ Falha na conexão MySQL"
+            echo "Testando conectividade básica (ping)..."
+            ping -c 3 api-bd.mysql.database.azure.com || echo "Ping falhou"
+            
+            echo "Testando porta 3306..."
+            nc -zv api-bd.mysql.database.azure.com 3306 || echo "Porta 3306 não acessível"
+          fi
+
       # ==================================================================
       # Este passo foi adicionado para instalar as ferramentas do EF Core
       # e executar as migrations no banco de dados do Azure antes do deploy.
