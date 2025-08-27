@@ -30,10 +30,12 @@ jobs:
         run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: .net-app
           path: ${{env.DOTNET_ROOT}}/myapp
+          retention-days: 1
+          compression-level: 6
 
   deploy:
     runs-on: ubuntu-latest
@@ -51,11 +53,23 @@ jobs:
       # ==================================================================
 
       - name: Download artifact from build job
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           name: .net-app
           path: ./deployment
-      
+        timeout-minutes: 5
+
+      # CORREÇÃO: Verificar se o download funcionou
+      - name: Verify artifact download
+        run: |
+          echo "📁 Conteúdo do diretório deployment:"
+          ls -la ./deployment/
+          if [ -z "$(ls -A ./deployment/)" ]; then
+            echo "❌ ERRO: Nenhum arquivo foi baixado!"
+            exit 1
+          fi
+          echo "✅ Artifact baixado com sucesso"
+        
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -89,4 +103,5 @@ jobs:
           package: ./deployment
 
           
+
 
