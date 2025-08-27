@@ -43,6 +43,13 @@ jobs:
       contents: read #This is required for actions/checkout
 
     steps:
+      # ==================================================================
+      # ALTERAÇÃO 1: FAZER CHECKOUT DO CÓDIGO FONTE
+      # Adicionamos este passo para que o job tenha acesso à estrutura de arquivos do projeto.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      # ==================================================================
+
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
@@ -62,7 +69,7 @@ jobs:
       - name: Run EF Core Migrations
         run: |
           dotnet tool install --global dotnet-ef
-          dotnet ef database update --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
+          dotnet ef database update --project ApiIntegracao/ApiIntegracao.csproj --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
       # FIM DA ALTERAÇÃO
       # ==================================================================
 
