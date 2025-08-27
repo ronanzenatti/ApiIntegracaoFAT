@@ -89,6 +89,7 @@ jobs:
       # Utiliza um secret do repositório para a string de conexão.
       - name: Run EF Core Migrations
         run: |
+          echo "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
           dotnet tool install --global dotnet-ef
           dotnet ef database update --project ApiIntegracao/ApiIntegracao.csproj --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
       # FIM DA ALTERAÇÃO
