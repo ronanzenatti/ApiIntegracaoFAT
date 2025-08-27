@@ -111,8 +111,25 @@ jobs:
       # Utiliza um secret do repositório para a string de conexão.
       - name: Run EF Core Migrations
         run: |
+          echo "🔄 Instalando EF Core tools..."
           dotnet tool install --global dotnet-ef
-          dotnet ef database update --project ApiIntegracao/ApiIntegracao.csproj --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
+          
+          echo "📁 Estrutura atual dos arquivos:"
+          ls -la
+          ls -la ./deployment/ || echo "Deployment não encontrado"
+          ls -la ApiIntegracao/ || echo "ApiIntegracao não encontrado"
+          
+          echo "🔄 Executando migrations..."
+          
+          # CORREÇÃO: Usar o projeto do código fonte (não o deployment)
+          # O EF precisa dos arquivos .cs e .csproj, não apenas os binários
+          dotnet ef database update \
+            --project ApiIntegracao/ApiIntegracao.csproj \
+            --startup-project ApiIntegracao/ApiIntegracao.csproj \
+            --connection "server=api-bd.mysql.database.azure.com;port=3306;database=api_integracao;user=api;password=P#ssw0rdr;SslMode=Required;Connect Timeout=30;Command Timeout=60;AllowPublicKeyRetrieval=true;" \
+            --verbose
+          
+          echo "✅ Migrations executadas com sucesso"
       # FIM DA ALTERAÇÃO
       # ==================================================================
 
