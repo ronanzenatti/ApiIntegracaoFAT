@@ -5,9 +5,9 @@ namespace ApiIntegracao.DTOs.Login
     public class LoginRequestDto
     {
         [Required]
-        public string ClientId { get; set; }
+        public required string ClientId { get; set; }
 
         [Required]
-        public string ClientSecret { get; set; }
+        public required string ClientSecret { get; set; }
     }
 }

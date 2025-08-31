@@ -192,7 +192,8 @@ namespace ApiIntegracao.Services.Implementations
             {
                 _logger.LogInformation("Enviando frequência para CETTPRO...");
 
-                var response = await _cettproClient.PostAsync<object>(
+                var response = await _cettproClient.SendAsync<object>(
+                    HttpMethod.Post,
                     "api/v1/Frequencia",
                     frequenciaData);
 

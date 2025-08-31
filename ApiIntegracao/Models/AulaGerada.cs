@@ -8,10 +8,10 @@ namespace ApiIntegracao.Models
         public DateTime DataAula { get; set; }
         public TimeSpan HoraInicio { get; set; }
         public TimeSpan HoraFim { get; set; }
-        public string Assunto { get; set; }
-        public string Descricao { get; set; }
+        public required string Assunto { get; set; }
+        public required string Descricao { get; set; }
         public int DiaSemana { get; set; }
 
-        public virtual Turma Turma { get; set; }
+        public virtual Turma Turma { get; set; } = null!;
     }
 }

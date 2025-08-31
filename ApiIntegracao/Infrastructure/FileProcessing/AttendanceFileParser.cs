@@ -115,7 +115,7 @@ namespace ApiIntegracao.Infrastructure.FileProcessing
             return participantes;
         }
 
-        private async Task<List<ParticipanteArquivoDto>> ParseExcelFileAsync(IFormFile file)
+        private Task<List<ParticipanteArquivoDto>> ParseExcelFileAsync(IFormFile file)
         {
             var participantes = new List<ParticipanteArquivoDto>();
 
@@ -186,7 +186,7 @@ namespace ApiIntegracao.Infrastructure.FileProcessing
             }
 
             _logger.LogInformation("Total de {Count} participantes extraídos do Excel", participantes.Count);
-            return participantes;
+            return Task.FromResult(participantes);
         }
 
         private async Task<List<ParticipanteArquivoDto>> TryAlternativeCsvFormat(IFormFile file)

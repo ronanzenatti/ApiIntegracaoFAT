@@ -117,12 +117,12 @@ namespace ApiIntegracao.Services.Implementations
                 {
                     if (await IsProfessorAsync(emailParticipante))
                     {
-                        result.ProfessoresIdentificados.Add(participante.Email);
+                        result.ProfessoresIdentificados.Add(participante.Email!);
                         _logger.LogDebug("Professor identificado: {Email}", participante.Email);
                     }
                     else
                     {
-                        result.EmailsNaoIdentificados.Add(participante.Email);
+                        result.EmailsNaoIdentificados.Add(participante.Email!);
                         _logger.LogWarning("E-mail não identificado no arquivo: {Email}", participante.Email);
                     }
                 }

@@ -64,14 +64,14 @@ namespace ApiIntegracao.Controllers
                 }
 
                 // Validações adicionais de negócio
-                var validationResult = ValidateBusinessRules(request);
+                var validationResult = ValidateBusinessRules(request!);
                 if (validationResult != null)
                 {
                     return validationResult;
                 }
 
                 // Chamar o serviço para gerar o cronograma
-                var resultado = await _cronogramaService.GerarCronogramaAsync(request);
+                var resultado = await _cronogramaService.GerarCronogramaAsync(request!);
 
                 // Verificar se houve erro no processamento
                 if (resultado.Status == "Erro")

@@ -10,7 +10,7 @@ namespace ApiIntegracao.Infrastructure.HttpClients
     {
         Task<string> AuthenticateAsync();
         Task<T?> GetAsync<T>(string endpoint, string? token = null) where T : class;
-        Task<T?> PostAsync<T>(string endpoint, object data, string? token = null) where T : class;
+        Task<T?> SendAsync<T>(HttpMethod method, string endpoint, object data, string? token = null) where T : class;
         Task InvalidateTokenCache();
     }
 
@@ -117,15 +117,20 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             return await ProcessResponse<T>(response, endpoint);
         }
 
-        public async Task<T?> PostAsync<T>(string endpoint, object data, string? token = null) where T : class
+        public async Task<T?> SendAsync<T>(HttpMethod method, string endpoint, object? data, string? token = null) where T : class
         {
             token ??= await AuthenticateAsync();
 
-            _logger.LogDebug("POST {Endpoint}", endpoint);
+            _logger.LogDebug("{Method} {Endpoint}", method.Method, endpoint);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            using var request = new HttpRequestMessage(method, endpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             request.Content = JsonContent.Create(data);
+
+            if (data != null)
+            {
+                request.Content = JsonContent.Create(data);
+            }
 
             var response = await _httpClient.SendAsync(request);
 

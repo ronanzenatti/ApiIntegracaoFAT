@@ -109,7 +109,7 @@ namespace ApiIntegracao.Controllers
                         t.Nome.ToLower().Contains(searchTerm) ||
                         t.Curso.NomeCurso.ToLower().Contains(searchTerm) ||
                         (t.DisciplinaNomePortalFat != null && t.DisciplinaNomePortalFat.ToLower().Contains(searchTerm)) ||
-                        (t.IdPortalFat != null && t.IdPortalFat.ToString().Contains(searchTerm)));
+                        (t.IdPortalFat != null && t.IdPortalFat.ToString()!.Contains(searchTerm)));
                 }
 
                 // Contar total de itens
@@ -341,7 +341,7 @@ namespace ApiIntegracao.Controllers
                     var searchTerm = search.Trim().ToLower();
                     query = query.Where(m =>
                         m.Aluno.Nome.ToLower().Contains(searchTerm) ||
-                        m.Aluno.NomeSocial.ToLower().Contains(searchTerm) ||
+                        (m.Aluno.NomeSocial != null && m.Aluno.NomeSocial.ToLower().Contains(searchTerm)) ||
                         m.Aluno.Cpf.Contains(searchTerm) ||
                         (m.Aluno.EmailInstitucional != null && m.Aluno.EmailInstitucional.ToLower().Contains(searchTerm)));
                 }
@@ -516,6 +516,63 @@ namespace ApiIntegracao.Controllers
                     Title = "Erro interno do servidor",
                     Detail = "Ocorreu um erro ao sincronizar as turmas. Tente novamente mais tarde.",
                     Status = StatusCodes.Status500InternalServerError
+                });
+            }
+        }
+
+        /// <summary>
+        /// Executa a sincronização da entidade Turmas por um período específico.
+        /// </summary>
+        /// <param name="request">Objeto contendo a data inicial e final para o filtro.</param>
+        /// <returns>Resultado detalhado da sincronização de turmas para o período.</returns>
+        [HttpPost("turmas/periodo")]
+        [ProducesResponseType(typeof(SyncResultResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<SyncResultResponseDto>> SyncTurmasPorPeriodo([FromBody] SyncTurmasPorPeriodoRequest request)
+        {
+            try
+            {
+                var operationName = $"Turmas por Período ({request.DataInicial:d} a {request.DataFinal:d})";
+                _logger.LogInformation("Iniciando sincronização manual de '{OperationName}'...", operationName);
+
+                var syncResult = await _syncService.SyncTurmasPorPeriodoAsync(request.DataInicial, request.DataFinal);
+
+                var response = new SyncResultResponseDto
+                {
+                    Success = syncResult.Success,
+                    TotalProcessed = syncResult.TotalProcessed,
+                    Inserted = syncResult.Inserted,
+                    Updated = syncResult.Updated,
+                    Deleted = syncResult.Deleted,
+                    Errors = syncResult.Errors,
+                    StartTime = syncResult.StartTime,
+                    EndTime = syncResult.EndTime,
+                    Duration = syncResult.Duration
+                };
+
+                if (syncResult.Success)
+                {
+                    _logger.LogInformation(
+                        "Sincronização de '{OperationName}' concluída com sucesso: {Inserted} inseridas, {Updated} atualizadas",
+                        operationName, syncResult.Inserted, syncResult.Updated);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Sincronização de '{OperationName}' concluída com falhas: {Errors}",
+                        operationName, string.Join("; ", syncResult.Errors));
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro inesperado durante a sincronização manual de turmas por período.");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                {
+                    Title = "Erro Interno no Servidor",
+                    Detail = "Ocorreu um erro inesperado ao executar a sincronização de turmas por período. Consulte os logs para mais detalhes."
                 });
             }
         }

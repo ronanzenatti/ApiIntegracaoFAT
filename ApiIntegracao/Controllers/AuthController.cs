@@ -60,6 +60,7 @@ namespace ApiIntegracao.Controllers
             return Unauthorized(new LoginResponseDto
             {
                 Authenticated = false,
+                Token = "",
                 Message = "Credenciais inválidas."
             });
         }
@@ -67,7 +68,7 @@ namespace ApiIntegracao.Controllers
         private LoginResponseDto GenerateJwtToken()
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             var expiry = DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryInMinutes"]));
 

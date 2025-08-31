@@ -88,7 +88,7 @@ namespace ApiIntegracao.Controllers
                     query = query.Where(c =>
                         c.NomeCurso.ToLower().Contains(searchTerm) ||
                         (c.Descricao != null && c.Descricao.ToLower().Contains(searchTerm)) ||
-                        (c.IdPortalFat != null && c.IdPortalFat.ToString().ToLower().Contains(searchTerm)));
+                        (c.IdPortalFat != null && c.IdPortalFat.ToString()!.ToLower().Contains(searchTerm)));
                 }
 
                 // Contar total de itens

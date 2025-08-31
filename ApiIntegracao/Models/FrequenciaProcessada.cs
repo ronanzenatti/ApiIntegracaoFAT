@@ -14,6 +14,6 @@ namespace ApiIntegracao.Models
         public string? EmailsNaoIdentificados { get; set; }
         public bool Sucesso { get; set; }
 
-        public virtual Turma Turma { get; set; }
+        public virtual Turma Turma { get; set; } = null!;
     }
 }
