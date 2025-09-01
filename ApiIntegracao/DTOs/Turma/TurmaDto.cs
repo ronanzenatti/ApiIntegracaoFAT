@@ -1,4 +1,5 @@
 ﻿using ApiIntegracao.DTOs.Curso;
+using ApiIntegracao.DTOs.Unidade;
 using System.Text.Json.Serialization;
 
 namespace ApiIntegracao.DTOs.Turma

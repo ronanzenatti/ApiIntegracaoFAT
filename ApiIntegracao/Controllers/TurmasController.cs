@@ -466,6 +466,155 @@ namespace ApiIntegracao.Controllers
         }
 
         /// <summary>
+        /// Sincroniza turmas ativas dos últimos N dias
+        /// </summary>
+        /// <param name="request">Parâmetros da sincronização</param>
+        /// <returns>Resultado da sincronização</returns>
+        [HttpPost("sync-ativas")]
+        [ProducesResponseType(typeof(SyncResultResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<SyncResultResponseDto>> SyncTurmasAtivas(
+            [FromBody] SyncTurmasAtivasRequest? request = null)
+        {
+            try
+            {
+                request ??= new SyncTurmasAtivasRequest();
+
+                var operationName = $"Turmas Ativas (Últimos {request.Dias} dias)";
+                _logger.LogInformation("Iniciando sincronização manual de '{OperationName}'...", operationName);
+
+                var syncResult = await _syncService.SyncTurmasAtivasAsync();
+
+                var response = new SyncResultResponseDto
+                {
+                    Success = syncResult.Success,
+                    TotalProcessed = syncResult.TotalProcessed,
+                    Inserted = syncResult.Inserted,
+                    Updated = syncResult.Updated,
+                    Deleted = syncResult.Deleted,
+                    Errors = syncResult.Errors,
+                    StartTime = syncResult.StartTime,
+                    EndTime = syncResult.EndTime,
+                    Duration = syncResult.Duration
+                };
+
+                if (syncResult.Success)
+                {
+                    _logger.LogInformation(
+                        "Sincronização de '{OperationName}' concluída com sucesso: {Inserted} inseridas, {Updated} atualizadas",
+                        operationName, syncResult.Inserted, syncResult.Updated);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Sincronização de '{OperationName}' concluída com falhas: {Errors}",
+                        operationName, string.Join("; ", syncResult.Errors));
+                }
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro inesperado durante a sincronização de turmas ativas.");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                {
+                    Title = "Erro Interno no Servidor",
+                    Detail = "Ocorreu um erro inesperado ao executar a sincronização de turmas ativas. Consulte os logs para mais detalhes.",
+                    Status = StatusCodes.Status500InternalServerError
+                });
+            }
+        }
+        /// <summary>
+        /// Retorna detalhes de uma turma específica incluindo matrículas
+        /// </summary>
+        /// <param name="id">ID da turma</param>
+        /// <param name="incluirMatriculas">Se deve incluir as matrículas na resposta</param>
+        /// <returns>Detalhes da turma</returns>
+        [HttpGet("{id:guid}")]
+        [ProducesResponseType(typeof(TurmaDetalhadaResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<TurmaDetalhadaResponseDto>> GetTurma(
+            Guid id,
+            [FromQuery] bool incluirMatriculas = false)
+        {
+            var turma = await _context.Turmas
+                .Include(t => t.Curso)
+                .Include(t => t.UnidadeEnsino)
+                .Where(t => t.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (turma == null)
+            {
+                return NotFound();
+            }
+
+            var response = new TurmaDetalhadaResponseDto
+            {
+                Id = turma.Id,
+                IdCettpro = turma.IdCettpro,
+                Nome = turma.Nome,
+                DataInicio = turma.DataInicio,
+                DataTermino = turma.DataTermino,
+                Status = turma.Status,
+                Ativo = turma.Ativo,
+                CodigoPortalFat = turma.CodigoPortalFat,
+                DisciplinaCodigoPortalFat = turma.DisciplinaCodigoPortalFat,
+                DisciplinaNomePortalFat = turma.DisciplinaNomePortalFat,
+                Curso = turma.Curso != null ? new CursoResponseDto
+                {
+                    Id = turma.Curso.Id,
+                    IdCettpro = turma.Curso.IdCettpro,
+                    NomeCurso = turma.Curso.NomeCurso,
+                    CargaHoraria = turma.Curso.CargaHoraria,
+                    Descricao = turma.Curso.Descricao,
+                    Ativo = turma.Curso.Ativo
+                } : null,
+                UnidadeEnsino = turma.UnidadeEnsino != null ? new UnidadeEnsinoResponseDto
+                {
+                    Id = turma.UnidadeEnsino.Id,
+                    IdCettpro = turma.UnidadeEnsino.IdCettpro,
+                    Nome = turma.UnidadeEnsino.Nome,
+                    NomeFantasia = turma.UnidadeEnsino.NomeFantasia,
+                    Cnpj = turma.UnidadeEnsino.Cnpj,
+                    Ativo = turma.UnidadeEnsino.Ativo
+                } : null
+            };
+
+            if (incluirMatriculas)
+            {
+                var matriculas = await _context.Matriculas
+                    .Include(m => m.Aluno)
+                    .Where(m => m.TurmaId == turma.Id)
+                    .ToListAsync();
+
+                response.Matriculas = matriculas.Select(m => new MatriculaResponseDto
+                {
+                    Id = m.Id,
+                    IdCettpro = m.IdCettpro,
+                    Status = m.Status,
+                    DataMatricula = m.DataMatricula,
+                    Aluno = new AlunoResponseDto
+                    {
+                        Id = m.Aluno.Id,
+                        IdCettpro = m.Aluno.IdCettpro,
+                        Nome = m.Aluno.Nome,
+                        NomeSocial = m.Aluno.NomeSocial,
+                        Cpf = m.Aluno.Cpf,
+                        Rg = m.Aluno.Rg,
+                        Email = m.Aluno.Email,
+                        EmailInstitucional = m.Aluno.EmailInstitucional,
+                        DataNascimento = m.Aluno.DataNascimento,
+                        Ativo = m.Aluno.Ativo
+                    }
+                }).ToList();
+            }
+
+            return Ok(response);
+        }
+
+
+        /// <summary>
         /// Força sincronização das turmas
         /// </summary>
         /// <returns>Resultado da sincronização</returns>

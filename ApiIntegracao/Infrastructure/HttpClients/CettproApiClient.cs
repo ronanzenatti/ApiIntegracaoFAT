@@ -1,4 +1,5 @@
 ﻿// Infrastructure/HttpClients/CettproApiClient.cs
+using ApiIntegracao.DTOs.Cettpro;
 using ApiIntegracao.Exceptions;
 using System.Net;
 using System.Net.Http.Headers;
@@ -173,6 +174,55 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             var response = await _httpClient.SendAsync(request);
 
             return await ProcessResponse<T>(response, endpoint);
+        }
+
+        /// <summary>
+        /// Busca dados do endpoint CursoQualificacao
+        /// </summary>
+        public async Task<List<CursoQualificacaoDto>> GetCursoQualificacaoAsync()
+        {
+            try
+            {
+                _logger.LogDebug("Iniciando busca no endpoint CursoQualificacao");
+
+                // O endpoint CursoQualificacao aceita um POST com body vazio ou com filtros
+                var requestBody = new { };
+
+                var response = await PostAsync<List<CursoQualificacaoDto>>("api/v1/CursoQualificacao", requestBody);
+
+                _logger.LogDebug("Busca no CursoQualificacao concluída. {Count} cursos retornados",
+                    response?.Count ?? 0);
+
+                return response ?? new List<CursoQualificacaoDto>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar dados do endpoint CursoQualificacao");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Busca dados de uma turma específica no endpoint Matricula/Turma
+        /// </summary>
+        public async Task<MatriculaTurmaDto?> GetMatriculaTurmaAsync(Guid turmaId)
+        {
+            try
+            {
+                _logger.LogDebug("Iniciando busca de matrículas da turma {TurmaId}", turmaId);
+
+                var response = await GetAsync<MatriculaTurmaDto>($"api/v1/Matricula/Turma?idTurma={turmaId}");
+
+                _logger.LogDebug("Busca de matrículas da turma {TurmaId} concluída. {Count} matrículas encontradas",
+                    turmaId, response?.Matriculas?.Count ?? 0);
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar matrículas da turma {TurmaId}", turmaId);
+                throw;
+            }
         }
 
         /// <inheritdoc/>

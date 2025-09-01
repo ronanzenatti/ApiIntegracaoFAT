@@ -1,5 +1,6 @@
 ﻿using ApiIntegracao.Data;
 using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Matricula;
 using ApiIntegracao.DTOs.Turma;
 using ApiIntegracao.Exceptions;
 using ApiIntegracao.Infrastructure.HttpClients;
@@ -341,60 +342,98 @@ namespace ApiIntegracao.Services.Implementations
         }
 
         /// <summary>
-        /// Sincroniza as turmas da CETTPRO para um período específico informado.
+        /// Sincroniza turmas ativas dos últimos 30 dias usando o endpoint CursoQualificacao
         /// </summary>
-        /// <param name="dataInicial">Data inicial do período para busca das turmas.</param>
-        /// <param name="dataFinal">Data final do período para busca das turmas.</param>
-        /// <returns>Retorna um <see cref="SyncResult"/> contendo o resultado da sincronização.</returns>
+        /// <returns>Resultado da sincronização</returns>
+        public async Task<SyncResult> SyncTurmasAtivasAsync()
+        {
+            var result = new SyncResult { StartTime = DateTime.UtcNow };
+            var dataInicial = DateTime.Now.AddDays(-30);
+            var dataFinal = DateTime.Now;
+
+            try
+            {
+                _logger.LogInformation("Iniciando sincronização de turmas ativas dos últimos 30 dias...");
+
+                // 1. Buscar turmas ativas através do endpoint CursoQualificacao
+                var cursosQualificacao = await BuscarTurmasAtivasPorPeriodo(dataInicial, dataFinal);
+
+                if (cursosQualificacao == null || !cursosQualificacao.Any())
+                {
+                    _logger.LogWarning("Nenhuma turma ativa encontrada nos últimos 30 dias");
+                    result.Success = true;
+                    result.EndTime = DateTime.UtcNow;
+                    return result;
+                }
+
+                var todasTurmas = cursosQualificacao.SelectMany(c => c.Turmas).ToList();
+                result.TotalProcessed = todasTurmas.Count;
+
+                _logger.LogInformation("Processando {Count} turmas ativas encontradas", todasTurmas.Count);
+
+                // 2. Processar cada turma individualmente
+                foreach (var turmaQualificacao in todasTurmas)
+                {
+                    await ProcessarTurmaCompleta(turmaQualificacao, result);
+                }
+
+                await _context.SaveChangesAsync();
+                result.Success = !result.Errors.Any();
+
+                _logger.LogInformation(
+                    "Sincronização de turmas ativas concluída: {Inserted} inseridas, {Updated} atualizadas",
+                    result.Inserted, result.Updated);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro durante sincronização de turmas ativas");
+                result.Success = false;
+                result.Errors.Add($"Erro: {ex.Message}");
+            }
+            finally
+            {
+                result.EndTime = DateTime.UtcNow;
+            }
+
+            await LogSyncResult("TurmasAtivas", result);
+            return result;
+        }
+
+        /// <summary>
+        /// Versão atualizada do SyncTurmasPorPeriodoAsync usando CursoQualificacao
+        /// </summary>
         public async Task<SyncResult> SyncTurmasPorPeriodoAsync(DateTime dataInicial, DateTime dataFinal)
         {
-
             var result = new SyncResult { StartTime = DateTime.UtcNow };
 
             try
             {
-                _logger.LogInformation("Iniciando sincronização de turmas por período de {DataInicial} a {DataFinal}", dataInicial, dataFinal);
+                _logger.LogInformation("Iniciando sincronização de turmas por período de {DataInicial} a {DataFinal}",
+                    dataInicial, dataFinal);
 
-                // Criar o corpo da requisição para a API da CETTPRO
-                var requestBody = new
+                // 1. Buscar turmas através do endpoint CursoQualificacao
+                var cursosQualificacao = await BuscarTurmasAtivasPorPeriodo(dataInicial, dataFinal);
+
+                if (cursosQualificacao == null || !cursosQualificacao.Any())
                 {
-                    dataInicial = dataInicial.ToString("yyyy-MM-dd"),
-                    dataFinal = dataFinal.ToString("yyyy-MM-dd")
-                };
-
-                // Usar o método SendAsync com HttpMethod.Get e o corpo da requisição
-                var turmasFromApi = await _cettproClient.SendAsync<List<TurmaDto>>(HttpMethod.Get, "api/v1/Turma", requestBody);
-
-                if (turmasFromApi == null || turmasFromApi.Count == 0)
-                {
-                    _logger.LogWarning("Nenhuma turma retornada pela API para o período especificado.");
+                    _logger.LogWarning("Nenhuma turma encontrada no período especificado");
                     result.Success = true;
-                    result.TotalProcessed = 0;
                     result.EndTime = DateTime.UtcNow;
-                    await LogSyncResult("TurmaPorPeriodo", result);
                     return result;
                 }
 
-                // A lógica de processamento é a mesma do SyncTurmasAsync
-                result.TotalProcessed = turmasFromApi.Count;
-                _logger.LogInformation("Processando {Count} turmas da CETTPRO para o período", turmasFromApi.Count);
+                var todasTurmas = cursosQualificacao.SelectMany(c => c.Turmas).ToList();
+                result.TotalProcessed = todasTurmas.Count;
 
-                // Simulando a lógica de processamento para este exemplo
-                foreach (var turmaDto in turmasFromApi)
+                _logger.LogInformation("Processando {Count} turmas encontradas no período", todasTurmas.Count);
+
+                // 2. Processar cada turma individualmente
+                foreach (var turmaQualificacao in todasTurmas)
                 {
-                    var turmaExistente = await _context.Turmas.FirstOrDefaultAsync(t => t.IdCettpro == turmaDto.IdTurma);
-                    if (turmaExistente == null)
-                    {
-                        result.Inserted++;
-                    }
-                    else
-                    {
-                        result.Updated++;
-                    }
+                    await ProcessarTurmaCompleta(turmaQualificacao, result);
                 }
 
                 await _context.SaveChangesAsync();
-
                 result.Success = !result.Errors.Any();
 
                 _logger.LogInformation(
@@ -412,9 +451,289 @@ namespace ApiIntegracao.Services.Implementations
                 result.EndTime = DateTime.UtcNow;
             }
 
-            await LogSyncResult("TurmaPorPeriodo", result);
-
+            await LogSyncResult("TurmasPorPeriodo", result);
             return result;
+        }
+
+        /// <summary>
+        /// Busca turmas ativas através do endpoint CursoQualificacao
+        /// </summary>
+        private async Task<List<CursoQualificacaoDto>> BuscarTurmasAtivasPorPeriodo(DateTime dataInicial, DateTime dataFinal)
+        {
+            try
+            {
+                // Parametros vazios para buscar todas as turmas ativas
+                var requestBody = new { };
+
+                var cursosQualificacao = await _cettproClient.PostAsync<List<CursoQualificacaoDto>>(
+                    "api/v1/CursoQualificacao", requestBody);
+
+                if (cursosQualificacao == null)
+                {
+                    _logger.LogWarning("Resposta nula do endpoint CursoQualificacao");
+                    return new List<CursoQualificacaoDto>();
+                }
+
+                // Filtrar turmas por período (se necessário)
+                var cursosComTurmasFiltradas = cursosQualificacao
+                    .Where(c => c.Turmas.Any())
+                    .Select(c => new CursoQualificacaoDto
+                    {
+                        IdCurso = c.IdCurso,
+                        NomeCurso = c.NomeCurso,
+                        CargaHoraria = c.CargaHoraria,
+                        Descricao = c.Descricao,
+                        Ativo = c.Ativo,
+                        Modalidades = c.Modalidades,
+                        Arcos = c.Arcos,
+                        Turmas = c.Turmas.Where(t =>
+                            t.DataInicio.HasValue &&
+                            t.DataInicio.Value.Date >= dataInicial.Date &&
+                            t.DataInicio.Value.Date <= dataFinal.Date).ToList()
+                    })
+                    .Where(c => c.Turmas.Any())
+                    .ToList();
+
+                return cursosComTurmasFiltradas;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao buscar turmas através do endpoint CursoQualificacao");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Processa uma turma completa: atualiza dados e sincroniza alunos
+        /// </summary>
+        private async Task ProcessarTurmaCompleta(TurmaQualificacaoDto turmaQualificacao, SyncResult result)
+        {
+            try
+            {
+                // 1. Atualizar/inserir dados da turma
+                var turmaExistente = await _context.Turmas
+                    .FirstOrDefaultAsync(t => t.IdCettpro == turmaQualificacao.IdTurma);
+
+                if (turmaExistente == null)
+                {
+                    // Inserir nova turma
+                    var novaTurma = new Turma
+                    {
+                        IdCettpro = turmaQualificacao.IdTurma,
+                        Nome = turmaQualificacao.Nome,
+                        DataInicio = turmaQualificacao.DataInicio,
+                        DataTermino = turmaQualificacao.DataTermino,
+                        Status = turmaQualificacao.Status,
+                        Ativo = true,
+                        CursoId = await ObterCursoId(turmaQualificacao),
+                        UnidadeEnsinoId = await ObterUnidadeEnsinoId(turmaQualificacao)
+                    };
+
+                    _context.Turmas.Add(novaTurma);
+                    result.Inserted++;
+                }
+                else
+                {
+                    // Atualizar turma existente
+                    turmaExistente.Nome = turmaQualificacao.Nome;
+                    turmaExistente.DataInicio = turmaQualificacao.DataInicio;
+                    turmaExistente.DataTermino = turmaQualificacao.DataTermino;
+                    turmaExistente.Status = turmaQualificacao.Status;
+                    turmaExistente.DeletedAt = null; // Reativar se estava soft-deleted
+                    turmaExistente.UpdatedAt = DateTime.UtcNow;
+
+                    result.Updated++;
+                }
+
+                // 2. Buscar e atualizar dados completos da turma com matrículas
+                await AtualizarMatriculasDaTurma(turmaQualificacao.IdTurma, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao processar turma {TurmaId}: {Erro}",
+                    turmaQualificacao.IdTurma, ex.Message);
+                result.Errors.Add($"Erro ao processar turma {turmaQualificacao.Nome}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Atualiza as matrículas de uma turma específica usando o endpoint Matricula/Turma
+        /// </summary>
+        private async Task AtualizarMatriculasDaTurma(Guid turmaId, SyncResult result)
+        {
+            try
+            {
+                _logger.LogDebug("Atualizando matrículas da turma {TurmaId}", turmaId);
+
+                // Buscar dados completos da turma com matrículas
+                var matriculaTurma = await _cettproClient.GetAsync<MatriculaTurmaDto>(
+                    $"api/v1/Matricula/Turma?idTurma={turmaId}");
+
+                if (matriculaTurma?.Matriculas == null || !matriculaTurma.Matriculas.Any())
+                {
+                    _logger.LogDebug("Nenhuma matrícula encontrada para a turma {TurmaId}", turmaId);
+                    return;
+                }
+
+                _logger.LogDebug("Processando {Count} matrículas da turma {TurmaId}",
+                    matriculaTurma.Matriculas.Count, turmaId);
+
+                // Processar cada matrícula
+                foreach (var matriculaDto in matriculaTurma.Matriculas)
+                {
+                    await ProcessarMatricula(matriculaDto, turmaId, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao atualizar matrículas da turma {TurmaId}", turmaId);
+                result.Errors.Add($"Erro ao atualizar matrículas da turma {turmaId}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Processa uma matrícula individual e seus alunos
+        /// </summary>
+        private async Task ProcessarMatricula(MatriculaDto matriculaDto, Guid turmaId, SyncResult result)
+        {
+            try
+            {
+                var turmaLocal = await _context.Turmas
+                    .FirstOrDefaultAsync(t => t.IdCettpro == turmaId);
+
+                if (turmaLocal == null)
+                {
+                    _logger.LogWarning("Turma local não encontrada para ID {TurmaId}", turmaId);
+                    return;
+                }
+
+                // Processar cada aluno da matrícula
+                foreach (var alunoDto in matriculaDto.Alunos)
+                {
+                    await ProcessarAluno(alunoDto, matriculaDto, turmaLocal, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao processar matrícula {MatriculaId}", matriculaDto.IdMatricula);
+                result.Errors.Add($"Erro ao processar matrícula {matriculaDto.IdMatricula}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Processa um aluno individual e sua matrícula
+        /// </summary>
+        private async Task ProcessarAluno(AlunoMatriculaDto alunoDto, MatriculaDto matriculaDto,
+            Turma turmaLocal, SyncResult result)
+        {
+            try
+            {
+                // 1. Verificar/inserir/atualizar aluno
+                var alunoExistente = await _context.Alunos
+                    .FirstOrDefaultAsync(a => a.IdCettpro == alunoDto.IdAluno);
+
+                if (alunoExistente == null)
+                {
+                    // Inserir novo aluno
+                    var novoAluno = new Aluno
+                    {
+                        IdCettpro = alunoDto.IdAluno,
+                        Nome = alunoDto.Nome,
+                        NomeSocial = alunoDto.NomeSocial,
+                        NomePai = alunoDto.NomePai,
+                        NomeMae = alunoDto.NomeMae,
+                        Cnh = alunoDto.Cnh,
+                        Cpf = alunoDto.Cpf,
+                        Rg = alunoDto.Rg,
+                        MunicipioId = alunoDto.MunicipioId,
+                        TipoPNE = alunoDto.TipoPNE,
+                        DataNascimento = ParseDataNascimento(alunoDto.DataNascimento),
+                        Genero = alunoDto.Genero,
+                        Sexo = alunoDto.Sexo,
+                        Nacionalidade = alunoDto.Nacionalidade,
+                        EstadoCivil = alunoDto.EstadoCivil,
+                        Raca = alunoDto.Raca,
+                        Email = alunoDto.Email,
+                        Ativo = true
+                    };
+
+                    _context.Alunos.Add(novoAluno);
+                    alunoExistente = novoAluno;
+                }
+                else
+                {
+                    // Atualizar aluno existente
+                    alunoExistente.Nome = alunoDto.Nome;
+                    alunoExistente.NomeSocial = alunoDto.NomeSocial;
+                    alunoExistente.Email = alunoDto.Email;
+                    alunoExistente.DeletedAt = null;
+                    alunoExistente.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // 2. Verificar/inserir/atualizar matrícula
+                var matriculaExistente = await _context.Matriculas
+                    .FirstOrDefaultAsync(m => m.IdCettpro == matriculaDto.IdMatricula);
+
+                if (matriculaExistente == null)
+                {
+                    // Inserir nova matrícula
+                    var novaMatricula = new Matricula
+                    {
+                        IdCettpro = matriculaDto.IdMatricula,
+                        AlunoId = alunoExistente.Id,
+                        TurmaId = turmaLocal.Id,
+                        Status = matriculaDto.Status,
+                        DataMatricula = DateTime.UtcNow
+                    };
+
+                    _context.Matriculas.Add(novaMatricula);
+                }
+                else
+                {
+                    // Atualizar matrícula existente
+                    matriculaExistente.Status = matriculaDto.Status;
+                    matriculaExistente.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao processar aluno {AlunoId}", alunoDto.IdAluno);
+                result.Errors.Add($"Erro ao processar aluno {alunoDto.Nome}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Métodos auxiliares
+        /// </summary>
+        private async Task<Guid?> ObterCursoId(TurmaQualificacaoDto turmaDto)
+        {
+            // Lógica para encontrar o curso baseado no nome da turma ou outros critérios
+            // Por enquanto retorna null, mas pode ser implementado conforme necessário
+            return null;
+        }
+
+        private async Task<Guid?> ObterUnidadeEnsinoId(TurmaQualificacaoDto turmaDto)
+        {
+            if (turmaDto.UnidadeEnsino?.FirstOrDefault() != null)
+            {
+                var unidade = turmaDto.UnidadeEnsino.First();
+                var unidadeLocal = await _context.UnidadesEnsino
+                    .FirstOrDefaultAsync(u => u.IdCettpro == unidade.IdUnidadeEnsino);
+
+                return unidadeLocal?.Id;
+            }
+
+            return null;
+        }
+
+        private DateTime? ParseDataNascimento(string dataNascimento)
+        {
+            if (DateTime.TryParse(dataNascimento, out var data))
+            {
+                return data;
+            }
+
+            return null;
         }
 
         /// <summary>

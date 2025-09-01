@@ -89,6 +89,21 @@ namespace ApiIntegracao.Controllers
         }
 
         /// <summary>
+        /// Executa a sincronização de turmas ativas dos últimos 30 dias
+        /// </summary>
+        /// <returns>Resultado detalhado da sincronização</returns>
+        [HttpPost("turmas-ativas")]
+        [ProducesResponseType(typeof(SyncResultResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<SyncResultResponseDto>> SyncTurmasAtivas()
+        {
+            return await ExecuteSyncOperation(
+                "Turmas Ativas (Últimos 30 dias)",
+                () => _syncService.SyncTurmasAtivasAsync()
+            );
+        }
+
+        /// <summary>
         /// Método auxiliar para executar e padronizar a resposta das operações de sincronização.
         /// </summary>
         private async Task<ActionResult<SyncResultResponseDto>> ExecuteSyncOperation(

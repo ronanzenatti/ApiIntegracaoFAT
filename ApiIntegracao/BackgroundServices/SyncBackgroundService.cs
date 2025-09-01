@@ -23,44 +23,49 @@ public class SyncBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Sync Background Service is starting");
-
-        // Verifica se a sincronização automática está habilitada
-        if (!_syncSettings.Value.AutoSyncEnabled)
+        if (!_configuration.GetValue<bool>("SyncSettings:AutoSyncEnabled"))
         {
-            _logger.LogWarning("Auto sync is disabled. Background service will not run");
+            _logger.LogInformation("Sincronização automática está desabilitada");
             return;
         }
 
-        // Aguarda a aplicação estar pronta
-        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+        var intervalHours = _configuration.GetValue<int>("SyncSettings:SyncIntervalHours", 12);
+        var delay = TimeSpan.FromHours(intervalHours);
 
-        _logger.LogInformation("Sync Background Service is running. Interval: {Interval} hours",
-            _syncSettings.Value.SyncIntervalHours);
-
-        // Executa a primeira sincronização
-        await DoWork(stoppingToken);
-
-        // Configura o timer para execuções periódicas
-        var interval = TimeSpan.FromHours(_syncSettings.Value.SyncIntervalHours);
-
-        using var timer = new PeriodicTimer(interval);
+        // Aguardar 30 segundos antes de iniciar
+        await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await timer.WaitForNextTickAsync(stoppingToken);
-                await DoWork(stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when cancellation is requested
-                break;
-            }
-        }
+                using var scope = _serviceProvider.CreateScope();
+                var syncService = scope.ServiceProvider.GetRequiredService<ISyncService>();
 
-        _logger.LogInformation("Sync Background Service is stopping");
+                _logger.LogInformation("Iniciando sincronização automática...");
+
+                // MODIFICADO: Usar novo método de turmas ativas ao invés do método antigo
+                var tasks = new[]
+                {
+                        syncService.SyncCursosAsync(),
+                        syncService.SyncTurmasAtivasAsync(), // ALTERADO AQUI
+                        syncService.SyncAlunosAsync()
+                    };
+
+                var results = await Task.WhenAll(tasks);
+
+                if (results.All(r => r.Success))
+                    _logger.LogInformation("Sincronização automática concluída com sucesso");
+                else
+                    _logger.LogWarning("Sincronização automática concluída com alguns erros");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro durante sincronização automática");
+            }
+
+            await Task.Delay(delay, stoppingToken);
+        }
     }
 
     private async Task DoWork(CancellationToken stoppingToken)

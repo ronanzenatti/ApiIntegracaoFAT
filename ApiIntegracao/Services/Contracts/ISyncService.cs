@@ -5,6 +5,7 @@
         Task<SyncResult> SyncCursosAsync();
         Task<SyncResult> SyncTurmasAsync();
         Task<SyncResult> SyncTurmasPorPeriodoAsync(DateTime dataInicial, DateTime dataFinal);
+        Task<SyncResult> SyncTurmasAtivasAsync();
         Task<SyncResult> SyncAlunosAsync();
         Task<SyncResult> SyncAllAsync();
     }

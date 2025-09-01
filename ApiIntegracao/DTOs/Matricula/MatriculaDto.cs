@@ -1,7 +1,7 @@
 ﻿using ApiIntegracao.DTOs.Aluno;
 using System.Text.Json.Serialization;
 
-namespace ApiIntegracao.DTOs
+namespace ApiIntegracao.DTOs.Matricula
 {
     public class MatriculaDto
     {
