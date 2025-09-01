@@ -6,14 +6,43 @@ using System.Text.Json;
 
 namespace ApiIntegracao.Infrastructure.HttpClients
 {
+    /// <summary>
+    /// Define o contrato para um cliente que interage com a API CETTPRO.
+    /// </summary>
     public interface ICettproApiClient
     {
+        /// <summary>
+        /// Autentica na API CETTPRO para obter um token de acesso.
+        /// </summary>
+        /// <returns>O token de acesso Bearer.</returns>
         Task<string> AuthenticateAsync();
+        /// <summary>
+        /// Realiza uma requisição GET para um endpoint da API CETTPRO.
+        /// </summary>
+        /// <typeparam name="T">O tipo do objeto de resposta esperado.</typeparam>
+        /// <param name="endpoint">O endpoint da API para a requisição.</param>
+        /// <param name="token">O token de autenticação. Se nulo, um novo token será obtido.</param>
+        /// <returns>O objeto de resposta desserializado.</returns>
         Task<T?> GetAsync<T>(string endpoint, string? token = null) where T : class;
+        /// <summary>
+        /// Realiza uma requisição POST para um endpoint da API CETTPRO.
+        /// </summary>
+        /// <typeparam name="T">O tipo do objeto de resposta esperado.</typeparam>
+        /// <param name="method"></param>
+        /// <param name="endpoint">O endpoint da API para a requisição.</param>
+        /// <param name="data">O objeto a ser enviado no corpo da requisição.</param>
+        /// <param name="token">O token de autenticação. Se nulo, um novo token será obtido.</param>
+        /// <returns>O objeto de resposta desserializado.</returns>
         Task<T?> SendAsync<T>(HttpMethod method, string endpoint, object data, string? token = null) where T : class;
+        /// <summary>
+        /// Invalida o token de autenticação em cache, forçando uma nova autenticação na próxima chamada.
+        /// </summary>
         Task InvalidateTokenCache();
     }
 
+    /// <summary>
+    /// Implementação do cliente para interagir com a API CETTPRO, gerenciando autenticação e requisições.
+    /// </summary>
     public class CettproApiClient : ICettproApiClient
     {
         private readonly HttpClient _httpClient;
@@ -25,6 +54,12 @@ namespace ApiIntegracao.Infrastructure.HttpClients
         private DateTime _tokenExpiry;
         private readonly SemaphoreSlim _authSemaphore = new(1, 1);
 
+        /// <summary>
+        /// Inicializa uma nova instância do <see cref="CettproApiClient"/>.
+        /// </summary>
+        /// <param name="httpClient">O cliente HTTP para realizar as requisições.</param>
+        /// <param name="config">A configuração da aplicação para acessar os dados da API CETTPRO.</param>
+        /// <param name="logger">O logger para registrar informações e erros.</param>
         public CettproApiClient(
             HttpClient httpClient,
             IConfiguration config,
@@ -39,6 +74,7 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
         }
 
+        /// <inheritdoc/>
         public async Task<string> AuthenticateAsync()
         {
             // Usar semáforo para evitar múltiplas autenticações simultâneas
@@ -101,6 +137,7 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             }
         }
 
+        /// <inheritdoc/>
         public async Task<T?> GetAsync<T>(string endpoint, string? token = null) where T : class
         {
             // Se token não foi fornecido, obter um novo
@@ -117,6 +154,7 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             return await ProcessResponse<T>(response, endpoint);
         }
 
+        /// <inheritdoc/>
         public async Task<T?> SendAsync<T>(HttpMethod method, string endpoint, object? data, string? token = null) where T : class
         {
             token ??= await AuthenticateAsync();
@@ -137,6 +175,7 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             return await ProcessResponse<T>(response, endpoint);
         }
 
+        /// <inheritdoc/>
         private async Task<T?> ProcessResponse<T>(HttpResponseMessage response, string endpoint) where T : class
         {
             var content = await response.Content.ReadAsStringAsync();
@@ -233,6 +272,7 @@ namespace ApiIntegracao.Infrastructure.HttpClients
             }
         }
 
+        /// <inheritdoc/>
         public async Task InvalidateTokenCache()
         {
             await _authSemaphore.WaitAsync();
@@ -249,12 +289,26 @@ namespace ApiIntegracao.Infrastructure.HttpClients
         }
     }
 
-    // DTO para resposta de autenticação
+    /// <summary>
+    /// DTO para a resposta de autenticação da API CETTPRO.
+    /// </summary>
     public class AuthResponseDto
     {
+        /// <summary>
+        /// O tipo do token (ex: "Bearer").
+        /// </summary>
         public string Token_type { get; set; } = string.Empty;
+        /// <summary>
+        /// A role ou perfil do usuário autenticado.
+        /// </summary>
         public string Role { get; set; } = string.Empty;
+        /// <summary>
+        /// O tempo de expiração do token em segundos.
+        /// </summary>
         public int Expires_in { get; set; }
+        /// <summary>
+        /// O token de acesso para ser usado nas requisições subsequentes.
+        /// </summary>
         public string Access_token { get; set; } = string.Empty;
     }
 }

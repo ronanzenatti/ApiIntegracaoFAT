@@ -21,6 +21,9 @@ namespace ApiIntegracao.Controllers
         private readonly ISyncService _syncService;
         private readonly ILogger<AlunosController> _logger;
 
+        /// <summary>
+        /// Construtor do AlunosController
+        /// </summary>
         public AlunosController(
             ApiIntegracaoDbContext context,
             ISyncService syncService,

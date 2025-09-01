@@ -10,12 +10,21 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 namespace ApiIntegracao.Services.Implementations
 {
+    /// <summary>
+    /// Serviço de sincronização entre a API da CETTPRO e o banco de dados local.
+    /// </summary>
     public class SyncService : ISyncService
     {
         private readonly ICettproApiClient _cettproClient;
         private readonly ApiIntegracaoDbContext _context;
         private readonly ILogger<SyncService> _logger;
 
+        /// <summary>
+        /// Inicializa o serviço de sincronização.
+        /// </summary>
+        /// <param name="cettproClient"></param>
+        /// <param name="context"></param>
+        /// <param name="logger"></param>
         public SyncService(
             ICettproApiClient cettproClient,
             ApiIntegracaoDbContext context,
@@ -26,6 +35,10 @@ namespace ApiIntegracao.Services.Implementations
             _logger = logger;
         }
 
+        /// <summary>
+        /// Realiza a sincronização completa de cursos, turmas e alunos
+        /// </summary>
+        /// <returns></returns>
         public async Task<SyncResult> SyncAllAsync()
         {
             var result = new SyncResult { StartTime = DateTime.UtcNow };
@@ -68,6 +81,11 @@ namespace ApiIntegracao.Services.Implementations
             return result;
         }
 
+        /// <summary>
+        /// Sincroniza os cursos da CETTPRO com o banco de dados local.
+        /// Obtém os dados da API, realiza a desserialização e atualiza/inclui/exclui cursos conforme necessário.
+        /// </summary>
+        /// <returns>Retorna um <see cref="SyncResult"/> contendo o resultado da sincronização.</returns>
         public async Task<SyncResult> SyncCursosAsync()
         {
             var result = new SyncResult { StartTime = DateTime.UtcNow };
@@ -209,6 +227,7 @@ namespace ApiIntegracao.Services.Implementations
             return result;
         }
 
+        /// <inheritdoc/>
         public async Task<SyncResult> SyncTurmasAsync()
         {
             var result = new SyncResult { StartTime = DateTime.UtcNow };
@@ -396,8 +415,14 @@ namespace ApiIntegracao.Services.Implementations
             await LogSyncResult("TurmaPorPeriodo", result);
 
             return result;
-        }
+        }
 
+        /// <summary>
+        /// Sincroniza os alunos da CETTPRO com o banco de dados local.
+        /// Observação: Não há endpoint global na API CETTPRO para buscar todos os alunos.
+        /// A sincronização de alunos deve ocorrer em um contexto de turma específica.
+        /// </summary>
+        /// <returns>Retorna um <see cref="SyncResult"/> contendo o resultado da sincronização.</returns>
         public async Task<SyncResult> SyncAlunosAsync()
         {
             var result = new SyncResult { StartTime = DateTime.UtcNow };

@@ -17,6 +17,11 @@ namespace ApiIntegracao.Controllers
         private readonly ISyncService _syncService;
         private readonly ILogger<SyncController> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SyncController"/> class.
+        /// </summary>
+        /// <param name="syncService">The service responsible for handling synchronization operations. This parameter cannot be <c>null</c>.</param>
+        /// <param name="logger">The logger instance used to log diagnostic and operational messages. This parameter cannot be <c>null</c>.</param>
         public SyncController(ISyncService syncService, ILogger<SyncController> logger)
         {
             _syncService = syncService;

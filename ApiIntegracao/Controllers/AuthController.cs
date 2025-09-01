@@ -17,6 +17,10 @@ namespace ApiIntegracao.Controllers
     {
         private readonly IConfiguration _configuration;
 
+        /// <summary>
+        /// Inicializa uma nova instância do controlador de autenticação.
+        /// </summary>
+        /// <param name="configuration"></param>
         public AuthController(IConfiguration configuration)
         {
             _configuration = configuration;
