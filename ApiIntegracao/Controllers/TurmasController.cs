@@ -561,7 +561,7 @@ namespace ApiIntegracao.Controllers
                 Status = turma.Status,
                 Ativo = turma.Ativo,
                 CodigoPortalFat = turma.CodigoPortalFat,
-                DisciplinaCodigoPortalFat = turma.DisciplinaCodigoPortalFat,
+                DisciplinaCodigoPortalFat = turma.DisciplinaIdPortalFat,
                 DisciplinaNomePortalFat = turma.DisciplinaNomePortalFat,
                 Curso = turma.Curso != null ? new CursoResponseDto
                 {
