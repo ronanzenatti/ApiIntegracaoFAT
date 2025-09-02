@@ -92,7 +92,7 @@ namespace ApiIntegracao.Controllers
         /// Executa a sincronização de turmas ativas dos últimos 30 dias
         /// </summary>
         /// <returns>Resultado detalhado da sincronização</returns>
-        [HttpPost("turmas-ativas")]
+        [HttpPost("turmas/ativas-simples")]
         [ProducesResponseType(typeof(SyncResultResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<SyncResultResponseDto>> SyncTurmasAtivas()

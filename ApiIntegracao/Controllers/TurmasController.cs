@@ -1,10 +1,8 @@
 ﻿using ApiIntegracao.Data;
 using ApiIntegracao.DTOs.Aluno;
 using ApiIntegracao.DTOs.Curso;
-using ApiIntegracao.DTOs.Matricula;
 using ApiIntegracao.DTOs.Responses;
 using ApiIntegracao.DTOs.Turma;
-using ApiIntegracao.DTOs.Unidade;
 using ApiIntegracao.Services.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +23,12 @@ namespace ApiIntegracao.Controllers
         private readonly ISyncService _syncService;
         private readonly ILogger<TurmasController> _logger;
 
+        /// <summary>
+        /// Inicializa uma nova instância da classe <see cref="TurmasController"/>.
+        /// </summary>
+        /// <param name="context">O contexto do banco de dados.</param>
+        /// <param name="syncService">O serviço de sincronização.</param>
+        /// <param name="logger">O logger.</param>
         public TurmasController(
             ApiIntegracaoDbContext context,
             ISyncService syncService,
@@ -450,7 +454,7 @@ namespace ApiIntegracao.Controllers
                         .Where(a => a.DeletedAt == null && (idCurso == null || a.Turma.CursoId == idCurso))
                         .CountAsync(),
                     UltimaAtualizacao = await query
-                        .MaxAsync(t => (DateTime?)t.UpdatedAt) ?? DateTime.MinValue
+                        .MaxAsync(t => t.UpdatedAt)
                 };
 
                 return Ok(stats);
@@ -527,92 +531,6 @@ namespace ApiIntegracao.Controllers
                 });
             }
         }
-        /// <summary>
-        /// Retorna detalhes de uma turma específica incluindo matrículas
-        /// </summary>
-        /// <param name="id">ID da turma</param>
-        /// <param name="incluirMatriculas">Se deve incluir as matrículas na resposta</param>
-        /// <returns>Detalhes da turma</returns>
-        [HttpGet("{id:guid}")]
-        [ProducesResponseType(typeof(TurmaDetalhadaResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<TurmaDetalhadaResponseDto>> GetTurma(
-            Guid id,
-            [FromQuery] bool incluirMatriculas = false)
-        {
-            var turma = await _context.Turmas
-                .Include(t => t.Curso)
-                .Include(t => t.UnidadeEnsino)
-                .Where(t => t.Id == id)
-                .FirstOrDefaultAsync();
-
-            if (turma == null)
-            {
-                return NotFound();
-            }
-
-            var response = new TurmaDetalhadaResponseDto
-            {
-                IdTurma = turma.Id,
-                IdCettpro = turma.IdCettpro,
-                Nome = turma.Nome,
-                DataInicio = turma.DataInicio,
-                DataTermino = turma.DataTermino,
-                Status = turma.Status,
-                IdPortalFat = turma.IdPortalFat,
-                DisciplinaIdPortalFat = turma.DisciplinaIdPortalFat,
-                DisciplinaNomePortalFat = turma.DisciplinaNomePortalFat,
-                Curso = turma.Curso != null ? new CursoResponseDto
-                {
-                    IdCurso = turma.Curso.Id,
-                    IdCettpro = turma.Curso.IdCettpro,
-                    NomeCurso = turma.Curso.NomeCurso,
-                    CargaHoraria = turma.Curso.CargaHoraria,
-                    Descricao = turma.Curso.Descricao,
-                    Ativo = turma.Curso.Ativo
-                } : null,
-                UnidadeEnsino = turma.UnidadeEnsino != null ? new UnidadeEnsinoResponseDto
-                {
-                    Id = turma.UnidadeEnsino.Id,
-                    IdCettpro = turma.UnidadeEnsino.IdCettpro,
-                    Nome = turma.UnidadeEnsino.Nome,
-                    NomeFantasia = turma.UnidadeEnsino.NomeFantasia,
-                    Cnpj = turma.UnidadeEnsino.Cnpj,
-                    Ativo = turma.UnidadeEnsino.Ativo
-                } : null
-            };
-
-            if (incluirMatriculas)
-            {
-                var matriculas = await _context.Matriculas
-                    .Include(m => m.Aluno)
-                    .Where(m => m.TurmaId == turma.Id)
-                    .ToListAsync();
-
-                response.Matriculas = matriculas.Select(m => new MatriculaResponseDto
-                {
-                    Id = m.Id,
-                    IdCettpro = m.IdCettpro,
-                    Status = m.Status,
-                    DataMatricula = m.DataMatricula,
-                    Aluno = new AlunoResponseDto
-                    {
-                        Id = m.Aluno.Id,
-                        IdCettpro = m.Aluno.IdCettpro,
-                        Nome = m.Aluno.Nome,
-                        NomeSocial = m.Aluno.NomeSocial,
-                        Cpf = m.Aluno.Cpf,
-                        Rg = m.Aluno.Rg,
-                        Email = m.Aluno.Email,
-                        EmailInstitucional = m.Aluno.EmailInstitucional,
-                        DataNascimento = m.Aluno.DataNascimento,
-                    }
-                }).ToList();
-            }
-
-            return Ok(response);
-        }
-
 
         /// <summary>
         /// Força sincronização das turmas
