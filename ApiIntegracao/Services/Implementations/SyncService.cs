@@ -525,7 +525,6 @@ namespace ApiIntegracao.Services.Implementations
                         DataInicio = turmaQualificacao.DataInicio,
                         DataTermino = turmaQualificacao.DataTermino,
                         Status = turmaQualificacao.Status,
-                        Ativo = true,
                         CursoId = await ObterCursoId(turmaQualificacao),
                         UnidadeEnsinoId = await ObterUnidadeEnsinoId(turmaQualificacao)
                     };
@@ -655,7 +654,6 @@ namespace ApiIntegracao.Services.Implementations
                         EstadoCivil = alunoDto.EstadoCivil,
                         Raca = alunoDto.Raca,
                         Email = alunoDto.Email,
-                        Ativo = true
                     };
 
                     _context.Alunos.Add(novoAluno);

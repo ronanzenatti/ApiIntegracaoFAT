@@ -553,19 +553,18 @@ namespace ApiIntegracao.Controllers
 
             var response = new TurmaDetalhadaResponseDto
             {
-                Id = turma.Id,
+                IdTurma = turma.Id,
                 IdCettpro = turma.IdCettpro,
                 Nome = turma.Nome,
                 DataInicio = turma.DataInicio,
                 DataTermino = turma.DataTermino,
                 Status = turma.Status,
-                Ativo = turma.Ativo,
-                CodigoPortalFat = turma.CodigoPortalFat,
-                DisciplinaCodigoPortalFat = turma.DisciplinaIdPortalFat,
+                IdPortalFat = turma.IdPortalFat,
+                DisciplinaIdPortalFat = turma.DisciplinaIdPortalFat,
                 DisciplinaNomePortalFat = turma.DisciplinaNomePortalFat,
                 Curso = turma.Curso != null ? new CursoResponseDto
                 {
-                    Id = turma.Curso.Id,
+                    IdCurso = turma.Curso.Id,
                     IdCettpro = turma.Curso.IdCettpro,
                     NomeCurso = turma.Curso.NomeCurso,
                     CargaHoraria = turma.Curso.CargaHoraria,
@@ -607,7 +606,6 @@ namespace ApiIntegracao.Controllers
                         Email = m.Aluno.Email,
                         EmailInstitucional = m.Aluno.EmailInstitucional,
                         DataNascimento = m.Aluno.DataNascimento,
-                        Ativo = m.Aluno.Ativo
                     }
                 }).ToList();
             }
