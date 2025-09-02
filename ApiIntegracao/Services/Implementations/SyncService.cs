@@ -1,5 +1,6 @@
 ﻿using ApiIntegracao.Data;
 using ApiIntegracao.DTOs;
+using ApiIntegracao.DTOs.Cettpro;
 using ApiIntegracao.DTOs.Matricula;
 using ApiIntegracao.DTOs.Turma;
 using ApiIntegracao.Exceptions;

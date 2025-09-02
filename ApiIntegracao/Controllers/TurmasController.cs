@@ -1,8 +1,10 @@
 ﻿using ApiIntegracao.Data;
 using ApiIntegracao.DTOs.Aluno;
 using ApiIntegracao.DTOs.Curso;
+using ApiIntegracao.DTOs.Matricula;
 using ApiIntegracao.DTOs.Responses;
 using ApiIntegracao.DTOs.Turma;
+using ApiIntegracao.DTOs.Unidade;
 using ApiIntegracao.Services.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -1,5 +1,6 @@
 ﻿using ApiIntegracao.DTOs.Curso;
 using ApiIntegracao.DTOs.Matricula;
+using ApiIntegracao.DTOs.Unidade;
 
 namespace ApiIntegracao.DTOs.Turma
 {
